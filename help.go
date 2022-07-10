@@ -71,8 +71,8 @@ func SendHelp(ctx context.Context, s *discordgo.Session, cid string) {
 // InfoEmbedFields are fields embedded in info command embeds.
 var InfoEmbedFields = []*discordgo.MessageEmbedField{
 	{
-		Name:   "Discord Library",
-		Value:  "[DiscordGo](https://github.com/bwmarrin/discordgo)",
+		Name:   "Source Code",
+		Value:  "[github.com/travis-g/dice-golem](https://github.com/travis-g/dice-golem)",
 		Inline: true,
 	},
 	{
@@ -81,9 +81,13 @@ var InfoEmbedFields = []*discordgo.MessageEmbedField{
 		Inline: true,
 	},
 	{
-		Name:   "Links",
-		Value:  fmt.Sprintf("[Support Server](%s) | [Info (Top.gg)](%s)", support, vote),
+		Name:   "Discord Library",
+		Value:  "[DiscordGo](https://github.com/bwmarrin/discordgo)",
 		Inline: true,
+	},
+	{
+		Name:  "Links",
+		Value: fmt.Sprintf("[Support Server](%s) | [Info (Top.gg)](%s)", support, vote),
 	},
 }
 
