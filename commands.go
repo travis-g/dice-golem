@@ -54,23 +54,23 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Description: "Configure settings and preferences",
 		Type:        discordgo.ApplicationCommandType(discordgo.ApplicationCommandOptionSubCommand),
 		Options: []*discordgo.ApplicationCommandOption{
-			// {
-			// 	Name:        "recent",
-			// 	Description: "Suggestions based on your recent rolls",
-			// 	Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
-			// 	Options: []*discordgo.ApplicationCommandOption{
-			// 		{
-			// 			Name:        "enable",
-			// 			Description: "Enable suggestions based on your recent rolls",
-			// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-			// 		},
-			// 		{
-			// 			Name:        "disable",
-			// 			Description: "Disable suggestions based on your recent rolls",
-			// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-			// 		},
-			// 	},
-			// },
+			{
+				Name:        "recent",
+				Description: "Suggestions based on your recent rolls",
+				Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "enable",
+						Description: "Enable suggestions based on your recent rolls",
+						Type:        discordgo.ApplicationCommandOptionSubCommand,
+					},
+					{
+						Name:        "disable",
+						Description: "Disable suggestions based on your recent rolls",
+						Type:        discordgo.ApplicationCommandOptionSubCommand,
+					},
+				},
+			},
 			{
 				Name:        "detailed",
 				Description: "Default roll output preference",
