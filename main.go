@@ -143,7 +143,7 @@ func createFriendlyError(err error) error {
 	case math.ErrNilResult:
 		return fmt.Errorf("Your roll didn't yield a result.")
 	case ErrTokenTransition:
-		return fmt.Errorf("An error was thrown when evaluating your expression; please check for extra spaces in notations or missing math operators.")
+		return fmt.Errorf("An error was thrown when evaluating your expression. Please check for extra spaces in notations or missing math operators.")
 	default:
 		return fmt.Errorf("Something unexpected errored. Please check `/help`.")
 	}
@@ -202,12 +202,7 @@ func HandleReady(s *discordgo.Session, e *discordgo.Ready) {
 		zap.Int("shards", s.ShardCount),
 		zap.Int("shard", s.ShardID),
 	)
-	metrics.IncrCounterWithLabels([]string{"ready"}, 1, []metrics.Label{
-		{
-			Name:  "shard",
-			Value: strconv.Itoa(s.ShardID),
-		},
-	})
+	metrics.IncrCounter([]string{"ready"}, 1)
 	s.UpdateGameStatus(0, DiceGolem.Status)
 }
 
@@ -217,21 +212,11 @@ func HandleResume(s *discordgo.Session, e *discordgo.Resumed) {
 		zap.String("id", s.State.User.ID),
 		zap.Int("shard", s.ShardID),
 	)
-	metrics.IncrCounterWithLabels([]string{"resume"}, 1, []metrics.Label{
-		{
-			Name:  "shard",
-			Value: strconv.Itoa(s.ShardID),
-		},
-	})
+	metrics.IncrCounter([]string{"resume"}, 1)
 }
 
 func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
-	metrics.IncrCounterWithLabels([]string{"guild_create"}, 1, []metrics.Label{
-		{
-			Name:  "shard",
-			Value: strconv.Itoa(s.ShardID),
-		},
-	})
+	metrics.IncrCounter([]string{"guild_create"}, 1)
 	logger.Debug("guild create",
 		zap.Int("shard", s.ShardID),
 		zap.String("id", e.ID))
@@ -241,10 +226,8 @@ func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
 // to the appropriate sub-routers ands handlers based on type.
 func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	defer InteractionRecover(s, i.Interaction)
-	metrics.IncrCounterWithLabels([]string{"core", "interaction"}, 1, []metrics.Label{
-		{Name: "shard", Value: strconv.Itoa(s.ShardID)},
-		{Name: "type", Value: i.Type.String()},
-	})
+	metrics.IncrCounter([]string{"core", "interaction"}, 1)
+	metrics.IncrCounter([]string{"core", "interaction", i.Type.String()}, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -260,10 +243,7 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 			zap.Any("data", i),
 		)
 		command := i.ApplicationCommandData().Name
-		defer metrics.IncrCounterWithLabels([]string{"interaction", i.Type.String()}, 1, []metrics.Label{
-			{Name: "shard", Value: strconv.Itoa(s.ShardID)},
-			{Name: "command", Value: command},
-		})
+		defer metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
 		if handle, ok := handlers[command]; ok {
 			// TODO: cache the interaction token
 			// defer DiceGolem.Cache.Set(fmt.Sprintf("cache:interaction:%s:token", i.ID), i.Token, cache.DefaultExpiration)
@@ -291,21 +271,28 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 			zap.Int("type", int(i.Type)),
 			zap.Any("data", i),
 		)
-		defer metrics.IncrCounterWithLabels([]string{"interaction", i.Type.String()}, 1, []metrics.Label{
-			{Name: "shard", Value: strconv.Itoa(s.ShardID)},
-		})
+		defer metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
 		id := i.MessageComponentData().CustomID
 		// if button was a macro button strip off the macro_ prefix and use the
 		// ID as the rest of the expression
 		if strings.HasPrefix(id, "macro_") {
 			roll := strings.TrimPrefix(id, "macro_")
 			_, response, _ := NewRollMessageResponseFromString(ctx, roll)
-			// No need to cache as there's no interaction evidence
-			_, _ = s.ChannelMessageSendComplex(i.ChannelID, response)
-			_ = MeasureInteractionRespond(s.InteractionRespond, i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseDeferredMessageUpdate,
-			})
-			// cacheRollExpression(s, i.Interaction, rollData.Expression)
+			_, err := s.ChannelMessageSendComplex(i.ChannelID, response)
+			if err != nil {
+				MeasureInteractionRespond(s.InteractionRespond, i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Flags:   1 << 6,
+						Content: ErrSendMessagePermissions.Error(),
+					},
+				})
+			} else {
+				_ = MeasureInteractionRespond(s.InteractionRespond, i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseDeferredMessageUpdate,
+				})
+				// cacheRollExpression(s, i.Interaction, rollData.Expression)
+			}
 		} else if handle, ok := handlers[id]; ok {
 			// if it was a generic action button, handle the press
 			handle(ctx)
@@ -326,9 +313,7 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 	// Auto-complete events with users' partial input data
 	case discordgo.InteractionApplicationCommandAutocomplete:
 		option := getFocusedOption(i.ApplicationCommandData()).Name
-		defer metrics.IncrCounterWithLabels([]string{"interaction", i.Type.String()}, 1, []metrics.Label{
-			{Name: "shard", Value: strconv.Itoa(s.ShardID)},
-		})
+		defer metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
 		defer metrics.MeasureSince([]string{"core", "autocomplete"}, time.Now())
 		if suggest, ok := suggesters[option]; ok {
 			suggest(ctx)
@@ -338,9 +323,7 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 
 func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	defer HandlePanic(s, m.Message)
-	defer metrics.IncrCounterWithLabels([]string{"message_in"}, 1, []metrics.Label{
-		{Name: "shard", Value: strconv.Itoa(s.ShardID)},
-	})
+	defer metrics.IncrCounter([]string{"message_in"}, 1)
 	logger.Debug("message_in", zap.Any("message", m))
 	// no content means there's no roll text to process
 	if m.Content == "" {
@@ -413,10 +396,7 @@ func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 // HandleRateLimit handles a possible rate limit by Discord.
 func HandleRateLimit(s *discordgo.Session, e *discordgo.RateLimit) {
 	logger.Warn("rate limited", zap.Any("event", e))
-	metrics.IncrCounterWithLabels([]string{"core", "rate_limit"}, 1, []metrics.Label{{
-		Name:  "shard",
-		Value: strconv.Itoa(s.ShardID),
-	}})
+	metrics.IncrCounter([]string{"core", "rate_limit"}, 1)
 	if err := DiceGolem.EmitNotificationMessage(&discordgo.MessageSend{
 		Embeds: []*discordgo.MessageEmbed{
 			{

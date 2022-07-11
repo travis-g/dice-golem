@@ -112,6 +112,10 @@ func emitStats(b *Bot) {
 	if DiceGolem.Redis == nil {
 		return
 	}
+	func() {
+		defer metrics.MeasureSince([]string{"redis", "ping"}, time.Now())
+		_ = DiceGolem.Redis.Ping()
+	}()
 	rolls, err := DiceGolem.Redis.Get("rolls:total").Int64()
 	if err != nil {
 		logger.Warn("metrics", zap.String("error", "can't retrieve roll count"))

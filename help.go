@@ -96,7 +96,8 @@ func makeEmbedInfo() *discordgo.MessageEmbed {
 		Title:       "Dice Golem Info",
 		Description: info,
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("Built with ❤️ and 🎲 by %s", owner),
+			Text:    fmt.Sprintf("Built with ❤️ and 🎲 by %s", owner),
+			IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
 		},
 		Author: &discordgo.MessageEmbedAuthor{},
 		Fields: InfoEmbedFields,

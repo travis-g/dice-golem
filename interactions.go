@@ -80,6 +80,7 @@ var (
 		// home-server commands
 		"state": StateInteraction,
 		"stats": StatsInteraction,
+		// "debug": DebugInteraction,
 
 		// message commands
 		"Roll Message": RollMessageInteractionCreate,
@@ -189,7 +190,7 @@ func RollInteractionCreatePrivate(ctx context.Context) {
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Flags:   1 << 6, // ephemeral
-				Content: "Sorry! A direct message couldn't be sent. Do you allow DMs?",
+				Content: ErrDMError.Error(),
 			}})
 		return
 	}
@@ -428,6 +429,7 @@ func NewRollMessageResponseFromString(ctx context.Context, content string) (*Res
 		user = m.Author
 		res.Name = user.Mention()
 	} else if m != nil {
+		// if in a DM skip the user mention/res.Name
 		user = UserFromMessage(m)
 	} else if i != nil {
 		user = UserFromInteraction(i)
@@ -534,7 +536,7 @@ func ButtonsInteraction(ctx context.Context) {
 	errRes := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "Sorry! I couldn't create a direct message with you. Do you allow DMs?",
+			Content: ErrDMError.Error(),
 		},
 	}
 
