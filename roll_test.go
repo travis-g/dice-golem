@@ -124,6 +124,21 @@ func TestNewRollInputFromString(t *testing.T) {
 				Expression: "3d6",
 			},
 		},
+		{
+			name:  "empty label",
+			input: "3d6 # ",
+			wantData: &RollInput{
+				Expression: "3d6",
+			},
+		},
+		{
+			name:  "label with mention",
+			input: "3d6 # @trav#1234 test",
+			wantData: &RollInput{
+				Expression: "3d6",
+				Label:      "@trav#1234 test",
+			},
+		},
 		// {
 		// 	name:     "formatted message; broken",
 		// 	input:    "roll `3d6 bludgeoning",

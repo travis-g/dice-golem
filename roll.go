@@ -63,7 +63,9 @@ func NewRollInputFromString(input string) *RollInput {
 		Expression: strings.TrimSpace(parts[0]),
 	}
 	if len(parts) > 1 {
-		data.Label = strings.TrimSpace(parts[1])
+		// remove everything prior to the first split loc carefully. first rune
+		// after cutting off the expression will be a comment char
+		data.Label = strings.TrimSpace(strings.TrimPrefix(input, parts[0])[1:])
 	}
 
 	return data
