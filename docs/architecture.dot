@@ -1,0 +1,36 @@
+digraph "Dice Golem Architecture" {
+    graph [nodesep=0.8 ranksep=1]
+
+    subgraph cluster_discord {
+        label=Discord
+        {
+            rank=same
+            API -> Gateway
+        }
+    }
+
+    subgraph cluster_golem    {
+        label="Dice Golem"
+        rankdir=LR
+        {
+            // Receiver
+            rank=same
+            Router
+            Handler
+        }
+        // Receiver -> Router [label=event]
+        // Receiver -> Router [label=hook]
+
+        Cache -> Router [label=lookup style=dashed tailhead=arrow]
+
+        Router -> Handler [label=data]
+        Handler -> Cache [label=cache]
+        Cache -> Handler [label=lookup style=dashed]
+        Handler -> API [label=response]
+    }
+
+    Gateway -> Router [label=events]
+    Gateway -> Router [label=hooks]
+    // Receiver -> API [label=POSTs]
+    // API -> Handler [label=GETs style=dashed]
+}
