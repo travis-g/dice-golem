@@ -4,14 +4,14 @@ During your interactions with Dice Golem the service collects information provid
 
 - Your unique numerical Discord user ID.
 - Guild and channel IDs where Dice Golem is used.
-- Supplied inputs like roll expressions, settings values, and labels.
+- Supplied inputs like roll expressions, settings, and labels.
 
 This information is used to:
 
 - Provide the Dice Golem service.
 - Associate and manage user-specific data, such as stored user preferences and recent commands.
 - Monitor service usage pursuant to enforcing the service's Terms.
-- Monitor and maintain service health and perforance.
+- Monitor and maintain service health and performance.
 - Investigate bugs and improve Dice Golem.
 
 Data is retained for as long as it is needed for the purposes for which it was collected.

@@ -1,6 +1,6 @@
-# Dice Golem [![owner: trav#2397][owner-badge]][discord-bot-list]
+# Dice Golem
 
-<!-- [![Go Report Card][report-card-badge]][report-card] -->
+[![owner: trav#2397][owner-badge]][discord-bot-list] [![Go Report Card][report-card-badge]][report-card]
 
 > _Medium construct, lawful neutral_
 
