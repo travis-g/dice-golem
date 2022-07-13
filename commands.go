@@ -35,10 +35,6 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Options:     MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
 	},
 	{
-		Name:        "buttons",
-		Description: "Get a mobile-friendly dice macro pad",
-	},
-	{
 		Name:        "clear",
 		Description: "Data management commands",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -114,6 +110,10 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 	{
 		Name:        "debug",
 		Description: "The debug interaction handler",
+	},
+	{
+		Name:        "buttons",
+		Description: "Get a mobile-friendly dice macro pad [BETA]",
 	},
 }
 
