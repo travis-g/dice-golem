@@ -69,6 +69,35 @@ func init() {
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.Button{
+					Label:    "3d4",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_3d4",
+				},
+				discordgo.Button{
+					Label:    "3d6",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_3d6",
+				},
+				discordgo.Button{
+					Label:    "3d8",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_3d8",
+				},
+				discordgo.Button{
+					Label:    "3d10",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_3d10",
+				},
+				discordgo.Button{
+					Label:    "3d12",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_3d12",
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
 					Label:    "ADV",
 					Style:    discordgo.SuccessButton,
 					CustomID: "macro_2d20k1|d20 (ADV)",

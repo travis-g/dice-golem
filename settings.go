@@ -10,30 +10,37 @@ import (
 
 // Constant fmt string formats for settings keys.
 const (
-	SettingsKeyUserSettingsFormat = "settings:user:%s"
+	SettingsKeyUserSettingsFormat  = "settings:user:%s"
+	SettingsKeyGuildSettingsFormat = "settings:guild:%s"
 )
 
 // TODO: redo settings management with binary
 type SettingName string
 
 const (
-	NoRecent SettingName = "norecent"
-	Detailed SettingName = "detailed"
+	SettingNoRecent       SettingName = "norecent"
+	SettingDetailed       SettingName = "detailed"
+	SettingNoAutocomplete SettingName = "noautocomplete"
 )
 
 func (s SettingName) String() string {
 	return string(s)
 }
 
-func Set(u *discordgo.User, s SettingName) {
+func SetPreference(u *discordgo.User, s SettingName) {
 	DiceGolem.Redis.SAdd(fmt.Sprintf(SettingsKeyUserSettingsFormat, u.ID), s.String())
 }
 
-func Unset(u *discordgo.User, s SettingName) {
+func UnsetPreference(u *discordgo.User, s SettingName) {
 	DiceGolem.Redis.SRem(fmt.Sprintf(SettingsKeyUserSettingsFormat, u.ID), s.String())
 }
 
-func IsSet(u *discordgo.User, s SettingName) bool {
+func HasPreference(u *discordgo.User, s SettingName) bool {
 	defer metrics.MeasureSince([]string{"redis", "sismember"}, time.Now())
 	return DiceGolem.Redis.SIsMember(fmt.Sprintf(SettingsKeyUserSettingsFormat, u.ID), s.String()).Val()
+}
+
+func HasSetting(g *discordgo.Guild, s SettingName) bool {
+	defer metrics.MeasureSince([]string{"redis", "sismember"}, time.Now())
+	return DiceGolem.Redis.SIsMember(fmt.Sprintf(SettingsKeyGuildSettingsFormat, g.ID), s.String()).Val()
 }

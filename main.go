@@ -77,6 +77,11 @@ func main() {
 	DiceGolem.Setup()
 	logger.Debug("loaded config", zap.Any("config", DiceGolem))
 
+	// open HTTP server for heap debugging
+	go func() {
+		http.ListenAndServe(":6060", nil)
+	}()
+
 	shards, err := DiceGolem.Open()
 	if err != nil {
 		logger.Fatal("error opening connections", zap.Error(err))
@@ -97,9 +102,11 @@ func main() {
 		},
 	})
 
-	if err := DiceGolem.ConfigureCommands(); err != nil {
-		logger.Error("commands", zap.Error(err))
-	}
+	go func() {
+		if err := DiceGolem.ConfigureCommands(); err != nil {
+			logger.Error("commands", zap.Error(err))
+		}
+	}()
 
 	// if DBL token is provided, set up the background server count updater.
 	if DiceGolem.TopToken != "" {
@@ -110,11 +117,6 @@ func main() {
 			}
 		}()
 	}
-
-	// open HTTP server for heap debugging
-	go func() {
-		http.ListenAndServe(":6060", nil)
-	}()
 
 	// wait 10 seconds before starting metrics
 	if DiceGolem.StatsdAddr != "" {
@@ -220,6 +222,10 @@ func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
 	logger.Debug("guild create",
 		zap.Int("shard", s.ShardID),
 		zap.String("id", e.ID))
+
+	if HasSetting(e.Guild, SettingNoAutocomplete) {
+		// TODO: upload options without autocomplete
+	}
 }
 
 // RouteInteractionCreate routes a Discord Interaction creation sent to the bot

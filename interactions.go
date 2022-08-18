@@ -274,7 +274,7 @@ func NewRollInteractionResponseFromInteraction(ctx context.Context) (*Response, 
 		return message, response, err
 	}
 
-	detailed := IsSet(UserFromInteraction(i), Detailed)
+	detailed := HasPreference(UserFromInteraction(i), SettingDetailed)
 	optDetailed := getOptionByName(options, "detailed")
 	if optDetailed != nil {
 		detailed = optDetailed.BoolValue()
@@ -365,7 +365,7 @@ func NewRollInteractionResponseFromStringWithContext(ctx context.Context, expres
 	}
 
 	// get user's default preference
-	detailed := IsSet(UserFromInteraction(i), Detailed)
+	detailed := HasPreference(UserFromInteraction(i), SettingDetailed)
 	if optDetailed := getOptionByName(options, "detailed"); optDetailed != nil {
 		detailed = optDetailed.BoolValue()
 	}
@@ -448,7 +448,7 @@ func NewRollMessageResponseFromString(ctx context.Context, content string) (*Res
 		},
 	}
 
-	if IsSet(user, Detailed) {
+	if HasPreference(user, SettingDetailed) {
 		message.Embeds = []*discordgo.MessageEmbed{{
 			Description: MarkdownDetails(ctx, res.Dice),
 		}}
@@ -477,36 +477,37 @@ func PingInteraction(ctx context.Context) {
 	fetched := time.Now()
 	logger.Debug("response message", zap.Any("message", m))
 	down := fetched.Sub(done)
-	if _, err := s.InteractionResponseEdit(i, &discordgo.WebhookEdit{
-		Content: " ",
-		Embeds: []*discordgo.MessageEmbed{
-			{
-				Fields: []*discordgo.MessageEmbedField{
-					{
-						Name: "Ping",
-						Value: fmt.Sprintf("%s (%s, %s)",
-							fetched.Sub(start).Round(time.Millisecond).String(),
-							up.Round(time.Millisecond).String(),
-							down.Round(time.Millisecond).String()),
-						Inline: true,
-					},
-					{
-						Name:   "Heartbeat",
-						Value:  s.HeartbeatLatency().Round(time.Millisecond).String(),
-						Inline: true,
-					},
-					{
-						Name:   "Shard",
-						Value:  strconv.Itoa(s.ShardID),
-						Inline: true,
-					},
+	embeds := []*discordgo.MessageEmbed{
+		{
+			Fields: []*discordgo.MessageEmbedField{
+				{
+					Name: "Ping",
+					Value: fmt.Sprintf("%s (%s, %s)",
+						fetched.Sub(start).Round(time.Millisecond).String(),
+						up.Round(time.Millisecond).String(),
+						down.Round(time.Millisecond).String()),
+					Inline: true,
 				},
-				Footer: &discordgo.MessageEmbedFooter{
-					Text:    DiceGolem.DefaultSession.State.User.Username,
-					IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
+				{
+					Name:   "Heartbeat",
+					Value:  s.HeartbeatLatency().Round(time.Millisecond).String(),
+					Inline: true,
+				},
+				{
+					Name:   "Shard",
+					Value:  strconv.Itoa(s.ShardID),
+					Inline: true,
 				},
 			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text:    DiceGolem.DefaultSession.State.User.Username,
+				IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
+			},
 		},
+	}
+	if _, err := s.InteractionResponseEdit(i, &discordgo.WebhookEdit{
+		Content: String(" "),
+		Embeds:  &embeds,
 	}); err != nil {
 		logger.Error("interaction response", zap.Error(err))
 		return
@@ -667,18 +668,18 @@ func SettingsInteraction(ctx context.Context) {
 		options = options[0].Options
 		switch options[0].Name {
 		case "enable":
-			Unset(user, NoRecent)
+			UnsetPreference(user, SettingNoRecent)
 		case "disable":
-			Set(user, NoRecent)
+			SetPreference(user, SettingNoRecent)
 			DiceGolem.Redis.Del(fmt.Sprintf(CacheKeyUserRecentFormat, user.ID))
 		}
 	case "detailed":
 		options = options[0].Options
 		switch options[0].Name {
 		case "enable":
-			Set(user, Detailed)
+			SetPreference(user, SettingDetailed)
 		case "disable":
-			Unset(user, Detailed)
+			UnsetPreference(user, SettingDetailed)
 		}
 	}
 	s.InteractionRespond(i, &discordgo.InteractionResponse{
@@ -734,6 +735,10 @@ func UserFromMessage(m *discordgo.Message) (user *discordgo.User) {
 	logger.Debug("user_from_message", zap.Any("message", m))
 	if m == nil {
 		return nil
+	}
+
+	if m.Member != nil && m.Member.User != nil {
+		return m.Member.User
 	}
 
 	return m.Author

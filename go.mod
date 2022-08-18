@@ -6,7 +6,7 @@ require (
 	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/armon/go-metrics v0.3.9
-	github.com/bwmarrin/discordgo v0.25.0
+	github.com/bwmarrin/discordgo v0.25.1-0.20220804185119-c0803d021f34
 	github.com/dustin/go-humanize v1.0.0
 	github.com/garyburd/redigo v1.6.2 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect

@@ -225,6 +225,7 @@ func SelfInUsers(users []*discordgo.User) (found bool) {
 	return
 }
 
+// contains returns whether a slice of strings contains a specific string.
 func contains(haystack []string, needle string) (found bool) {
 	for _, hay := range haystack {
 		if hay == needle {
@@ -234,6 +235,8 @@ func contains(haystack []string, needle string) (found bool) {
 	return
 }
 
+// distinct returns the distinct strings of a slice as a new slice. Blanks are
+// omitted.
 func distinct(in []string) (out []string) {
 	uniques := make(map[string]bool)
 	for _, item := range in {
@@ -246,5 +249,14 @@ func distinct(in []string) (out []string) {
 		}
 	}
 	return
+}
 
+// String is a helper to return a pointer to the supplied string.
+func String(v string) *string {
+	return &v
+}
+
+// Bool is a helper to return a pointer to the supplied boolean.
+func Bool(v bool) *bool {
+	return &v
 }

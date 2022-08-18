@@ -109,7 +109,7 @@ func CacheRoll(u *discordgo.User, r *RollInput) (err error) {
 		return ErrNoRedisClient
 	}
 	// skip if user does not want rolls cached
-	if IsSet(u, NoRecent) {
+	if HasPreference(u, SettingNoRecent) {
 		return nil
 	}
 	key := fmt.Sprintf(CacheKeyUserRecentFormat, u.ID)

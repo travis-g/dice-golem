@@ -30,9 +30,10 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Options:     MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
 	},
 	{
-		Name:        "private",
-		Description: "Make a roll to have DMed to you",
-		Options:     MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
+		Name:         "private",
+		Description:  "Make a roll to have DMed to you",
+		Options:      MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
+		DMPermission: Bool(false), // already private if in DMs.
 	},
 	{
 		Name:        "clear",
@@ -84,6 +85,23 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 					},
 				},
 			},
+			{
+				Name:        "autocomplete",
+				Description: "Manage autocomplete settings for the full server",
+				Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "enable",
+						Description: "Enable autocompletion when typing expressions",
+						Type:        discordgo.ApplicationCommandOptionSubCommand,
+					},
+					{
+						Name:        "disable",
+						Description: "Disable autocompletion when typing expressions",
+						Type:        discordgo.ApplicationCommandOptionSubCommand,
+					},
+				},
+			},
 		},
 	},
 	// TODO: break into commandsGlobalMessage[]
@@ -108,12 +126,12 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 		Description: "Check response times",
 	},
 	{
-		Name:        "debug",
-		Description: "The debug interaction handler",
+		Name:        "buttons",
+		Description: "Try a mobile-friendly dice macro pad [BETA]",
 	},
 	{
-		Name:        "buttons",
-		Description: "Get a mobile-friendly dice macro pad [BETA]",
+		Name:        "debug",
+		Description: "The debug interaction handler",
 	},
 }
 
@@ -134,6 +152,21 @@ var (
 			Name:         "label",
 			Description:  "Roll label, like 'fire damage'",
 			Autocomplete: true,
+		},
+	}
+	rollOptionsDefaultNoAutocomplete = []*discordgo.ApplicationCommandOption{
+		{
+			Type:         discordgo.ApplicationCommandOptionString,
+			Name:         "expression",
+			Description:  "Dice expression to roll, like '2d6+1'",
+			Required:     true,
+			Autocomplete: false,
+		},
+		{
+			Type:         discordgo.ApplicationCommandOptionString,
+			Name:         "label",
+			Description:  "Roll label, like 'fire damage'",
+			Autocomplete: false,
 		},
 	}
 	rollOptionsDetailed = []*discordgo.ApplicationCommandOption{

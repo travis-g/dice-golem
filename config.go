@@ -35,7 +35,7 @@ type Config struct {
 
 	// TTL levels, from internal caches to Redis cache
 	CacheTTL   time.Duration `env:"CACHE,default=30m"`
-	HistoryTTL time.Duration `env:"RECENT,default=12h"`
+	HistoryTTL time.Duration `env:"RECENT,default=72h"`
 
 	// Number of recent rolls to keep in history
 	MaxHistory int `env:"MAX_HISTORY,default=10"`
