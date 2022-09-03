@@ -80,7 +80,7 @@ var (
 		// home-server commands
 		"state": StateInteraction,
 		"stats": StatsInteraction,
-		// "debug": DebugInteraction,
+		"debug": DebugInteraction,
 
 		// message commands
 		"Roll Message": RollMessageInteractionCreate,
@@ -120,6 +120,9 @@ func RollInteractionCreate(ctx context.Context) {
 		return // short circuit
 	}
 
+	// count regular roll
+	defer metrics.IncrCounter([]string{"roll", "basic"}, 1)
+
 	rollData, response, rollErr := NewRollInteractionResponseFromInteraction(ctx)
 	if response == nil {
 		return
@@ -146,10 +149,23 @@ func RollInteractionCreateEphemeral(ctx context.Context) {
 	logger.Info("interaction", zap.String("id", i.ID))
 	logger.Debug("interaction data", zap.Any("data", i.ApplicationCommandData()))
 
-	_, response, _ := NewRollInteractionResponseFromInteraction(ctx)
+	rollData, response, rollErr := NewRollInteractionResponseFromInteraction(ctx)
 	if response == nil {
 		return
 	}
+
+	user := UserFromInteraction(i)
+	if rollErr == nil {
+		roll := &RollInput{
+			Expression: rollData.Expression,
+			Label:      rollData.Label,
+		}
+		defer CacheRoll(user, roll)
+	}
+
+	// count secret/ephemeral roll
+	defer metrics.IncrCounter([]string{"roll", "ephemeral"}, 1)
+
 	// Tweak the InteractionResponse to be ephemeral
 	response.Data.Flags = 1 << 6
 	if err := MeasureInteractionRespond(s.InteractionRespond, i, response); err != nil {
@@ -165,20 +181,23 @@ func RollInteractionCreatePrivate(ctx context.Context) {
 	logger.Info("interaction", zap.String("id", i.ID))
 	logger.Debug("interaction data", zap.Any("data", i.ApplicationCommandData()))
 
-	// check out who/where the roll was sent
-	var uid string
-	if i.Member != nil {
-		uid = i.Member.User.ID
-	} else {
-		// if no member data, this was in a DM channel...just send an interaction!
-		RollInteractionCreate(ctx)
-		return
-	}
+	uid := UserFromInteraction(i).ID
 
-	_, response, _ := NewRollInteractionResponseFromInteraction(ctx)
+	rollData, response, rollErr := NewRollInteractionResponseFromInteraction(ctx)
 	if response == nil {
 		return
 	}
+
+	user := UserFromInteraction(i)
+	if rollErr == nil {
+		roll := &RollInput{
+			Expression: rollData.Expression,
+			Label:      rollData.Label,
+		}
+		defer CacheRoll(user, roll)
+	}
+
+	// TODO: if already in a DM, respond as a plain interaction
 
 	// create a DM channel, but since we can't respond as an interaction across
 	// channels convert the response to a regular message
@@ -194,6 +213,9 @@ func RollInteractionCreatePrivate(ctx context.Context) {
 			}})
 		return
 	}
+
+	// count private roll
+	defer metrics.IncrCounter([]string{"roll", "private"}, 1)
 
 	if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -520,20 +542,6 @@ func ButtonsInteraction(ctx context.Context) {
 	s, i, _ := FromContext(ctx)
 	logger.Debug("buttons handler called", zap.String("interaction", i.ID))
 
-	// dm := i.Member != nil
-	// uid := UserFromInteraction(i).ID
-
-	// c, _ := s.UserChannelCreate(uid)
-	// logger.Debug("created channel", zap.String("id", c.ID))
-
-	// _, err := s.ChannelMessageSendComplex(c.ID, &discordgo.MessageSend{
-	// 	Content:    "<:dice_golem:741798570289660004> Dice buttons!",
-	// 	Components: DefaultPadComponents,
-	// })
-	// if err != nil {
-	// 	logger.Error("err creating DM channel", zap.Error(err))
-	// }
-
 	errRes := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -545,12 +553,26 @@ func ButtonsInteraction(ctx context.Context) {
 	// 	MeasureInteractionRespond(s.InteractionRespond, i, errRes)
 	// 	return
 	// }
+
+	subcommand := i.ApplicationCommandData().Options
+	var components []discordgo.MessageComponent
+	switch subcommand[0].Name {
+	case "dnd5e":
+		components = Dnd5ePadComponents
+	case "fate":
+		components = FatePadComponents
+	}
+
 	err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content:    "<:dice_golem:741798570289660004> Dice buttons!",
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Description: fmt.Sprintf("Click or tap to make dice rolls! Results will post to <#%s>.", i.ChannelID),
+				},
+			},
 			Flags:      1 << 6,
-			Components: DefaultPadComponents,
+			Components: components,
 		},
 	})
 
@@ -564,6 +586,7 @@ func ButtonsInteraction(ctx context.Context) {
 	// 		},
 	// 	})
 	// } else
+	// if there was an error for the interaction, send a different error response
 	if err != nil {
 		MeasureInteractionRespond(s.InteractionRespond, i, errRes)
 		return
@@ -764,4 +787,66 @@ func isRollPublic(i *discordgo.Interaction) bool {
 		return false
 	}
 	return true
+}
+
+func DebugInteraction(ctx context.Context) {
+	s, i, _ := FromContext(ctx)
+
+	parsed := &NamedRollInput{}
+
+	if err := MeasureInteractionRespond(s.InteractionRespond, i, makeSaveRollModal(parsed)); err != nil {
+		logger.Error("debug error", zap.Error(err))
+	}
+}
+
+func makeSaveRollModal(seed *NamedRollInput) *discordgo.InteractionResponse {
+	return &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: "modal_save",
+			Title:    "Save Roll",
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "expression",
+							Label:       "Expression to roll",
+							Style:       discordgo.TextInputShort,
+							Value:       seed.Expression,
+							Placeholder: "5d8+1",
+							Required:    true,
+							MaxLength:   32,
+							MinLength:   1,
+						},
+					},
+				},
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "name",
+							Label:       "Friendly name for the roll",
+							Style:       discordgo.TextInputShort,
+							Value:       seed.Name,
+							Placeholder: "Cast Sleep",
+							MaxLength:   32,
+							MinLength:   1,
+						},
+					},
+				},
+				discordgo.ActionsRow{
+					Components: []discordgo.MessageComponent{
+						discordgo.TextInput{
+							CustomID:    "label",
+							Label:       "Label to include when rolled",
+							Style:       discordgo.TextInputShort,
+							Value:       seed.Label,
+							Placeholder: "Total affected HP",
+							MaxLength:   32,
+							MinLength:   1,
+						},
+					},
+				},
+			},
+		},
+	}
 }

@@ -147,7 +147,7 @@ func createFriendlyError(err error) error {
 	case ErrTokenTransition:
 		return fmt.Errorf("An error was thrown when evaluating your expression. Please check for extra spaces in notations or missing math operators.")
 	default:
-		return fmt.Errorf("Something unexpected errored. Please check `/help`.")
+		return fmt.Errorf("Something unexpected errored. Please check </help:%s>.", DiceGolem.SelfID)
 	}
 }
 
@@ -204,7 +204,7 @@ func HandleReady(s *discordgo.Session, e *discordgo.Ready) {
 		zap.Int("shards", s.ShardCount),
 		zap.Int("shard", s.ShardID),
 	)
-	metrics.IncrCounter([]string{"ready"}, 1)
+	metrics.IncrCounter([]string{"core", "ready"}, 1)
 	s.UpdateGameStatus(0, DiceGolem.Status)
 }
 
@@ -214,11 +214,11 @@ func HandleResume(s *discordgo.Session, e *discordgo.Resumed) {
 		zap.String("id", s.State.User.ID),
 		zap.Int("shard", s.ShardID),
 	)
-	metrics.IncrCounter([]string{"resume"}, 1)
+	metrics.IncrCounter([]string{"core", "resume"}, 1)
 }
 
 func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
-	metrics.IncrCounter([]string{"guild_create"}, 1)
+	metrics.IncrCounter([]string{"core", "guild_create"}, 1)
 	logger.Debug("guild create",
 		zap.Int("shard", s.ShardID),
 		zap.String("id", e.ID))
@@ -232,12 +232,15 @@ func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
 // to the appropriate sub-routers ands handlers based on type.
 func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	defer InteractionRecover(s, i.Interaction)
-	metrics.IncrCounter([]string{"core", "interaction"}, 1)
-	metrics.IncrCounter([]string{"core", "interaction", i.Type.String()}, 1)
+	go func() {
+		metrics.IncrCounter([]string{"core", "interaction"}, 1)
+		metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ctx = NewContext(ctx, s, i.Interaction, nil)
+	ctx = context.WithValue(ctx, dice.CtxKeyMaxRolls, int(float64(DiceGolem.MaxDice)*1.2))
 
 	switch i.Type {
 	// CHAT_INPUT type
@@ -249,7 +252,6 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 			zap.Any("data", i),
 		)
 		command := i.ApplicationCommandData().Name
-		defer metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
 		if handle, ok := handlers[command]; ok {
 			// TODO: cache the interaction token
 			// defer DiceGolem.Cache.Set(fmt.Sprintf("cache:interaction:%s:token", i.ID), i.Token, cache.DefaultExpiration)
@@ -277,7 +279,6 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 			zap.Int("type", int(i.Type)),
 			zap.Any("data", i),
 		)
-		defer metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
 		id := i.MessageComponentData().CustomID
 		// if button was a macro button strip off the macro_ prefix and use the
 		// ID as the rest of the expression
@@ -319,7 +320,6 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 	// Auto-complete events with users' partial input data
 	case discordgo.InteractionApplicationCommandAutocomplete:
 		option := getFocusedOption(i.ApplicationCommandData()).Name
-		defer metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
 		defer metrics.MeasureSince([]string{"core", "autocomplete"}, time.Now())
 		if suggest, ok := suggesters[option]; ok {
 			suggest(ctx)
@@ -329,7 +329,7 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 
 func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	defer HandlePanic(s, m.Message)
-	defer metrics.IncrCounter([]string{"message_in"}, 1)
+	defer metrics.IncrCounter([]string{"core", "message_in"}, 1)
 	logger.Debug("message_in", zap.Any("message", m))
 	// no content means there's no roll text to process
 	if m.Content == "" {

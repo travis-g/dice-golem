@@ -67,7 +67,7 @@ const (
 	CacheKeyMessageDataFormat      = "cache:message:%s:roll"
 	CacheKeyGuildSettingFormat     = "cache:guild:%s:%s"
 	CacheKeyInteractionTokenFormat = "cache:token:%s"
-	CacheKeyUserRecentFormat       = "cache:users:%s:recent"
+	CacheKeyUserRecentFormat       = "cache:user:%s:recent"
 )
 
 // pray this is never used in a roll or label
@@ -123,8 +123,11 @@ func CacheRoll(u *discordgo.User, r *RollInput) (err error) {
 		pipe.ZAdd(key, z)
 		// re-set TTL
 		pipe.Expire(key, DiceGolem.HistoryTTL)
-		// trim set to maximum history using index offset
+
+		// trim history. Firstly, trim set to maximum history using index
+		// offset, then remove any entries older than "recent" date.
 		pipe.ZRemRangeByRank(key, 0, int64(-1-DiceGolem.MaxHistory))
+		pipe.ZRemRangeByScore(key, "-inf", fmt.Sprint(now.Add(-DiceGolem.RecentTTL).Unix()))
 		return nil
 	})
 

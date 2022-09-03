@@ -2,12 +2,15 @@ package main
 
 import "github.com/bwmarrin/discordgo"
 
-// DefaultPadComponents is the set of message components of the default macro
+// Dnd5ePadComponents is the set of message components of the default macro
 // pad.
-var DefaultPadComponents []discordgo.MessageComponent
+var (
+	Dnd5ePadComponents []discordgo.MessageComponent
+	FatePadComponents  []discordgo.MessageComponent
+)
 
 func init() {
-	DefaultPadComponents = []discordgo.MessageComponent{
+	Dnd5ePadComponents = []discordgo.MessageComponent{
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.Button{
@@ -98,6 +101,10 @@ func init() {
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.Button{
+					Label:    "d20",
+					CustomID: "macro_d20",
+				},
+				discordgo.Button{
 					Label:    "ADV",
 					Style:    discordgo.SuccessButton,
 					CustomID: "macro_2d20k1|d20 (ADV)",
@@ -108,10 +115,6 @@ func init() {
 					CustomID: "macro_2d20kl1|d20 (DIS)",
 				},
 				discordgo.Button{
-					Label:    "d20",
-					CustomID: "macro_d20",
-				},
-				discordgo.Button{
 					Label:    "2d20",
 					CustomID: "macro_2d20",
 					Style:    discordgo.SecondaryButton,
@@ -120,6 +123,65 @@ func init() {
 					Label:    "d100",
 					CustomID: "macro_d100",
 					Style:    discordgo.SecondaryButton,
+				},
+			},
+		},
+	}
+	FatePadComponents = []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    "-2",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF-2",
+				},
+				discordgo.Button{
+					Label:    "-1",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF-1",
+				},
+				discordgo.Button{
+					Label:    "4dF",
+					CustomID: "macro_4dF",
+				},
+				discordgo.Button{
+					Label:    "+1",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF+1",
+				},
+				discordgo.Button{
+					Label:    "+2",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF+2",
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    "+3",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF+3",
+				},
+				discordgo.Button{
+					Label:    "+4",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF+4",
+				},
+				discordgo.Button{
+					Label:    "+5",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF+5",
+				},
+				discordgo.Button{
+					Label:    "+6",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF+6",
+				},
+				discordgo.Button{
+					Label:    "+7",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4dF+7",
 				},
 			},
 		},

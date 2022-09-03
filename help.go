@@ -11,7 +11,7 @@ import (
 const (
 	// HACK: use UUID
 	owner   = "trav#2397"
-	info    = "A dice roller bot for standard RPG/TRPG dice notations. Dice rolls are made using a CSPRNG to ensure the results are completely random.\nIt responds to Slash commands even in DMs! Use `/help` for help and examples."
+	info    = "A dice roller bot for standard RPG/TRPG dice notations. Dice rolls are made using a CSPRNG to ensure the results are completely random.\nIt responds to Slash commands even in DMs! Use </help:581956766246633475> for help and examples."
 	support = "https://discord.gg/XUkXda5"
 	invite  = `https://discord.com/api/oauth2/authorize?client_id=581956766246633475&permissions=274878195712&scope=bot%20applications.commands`
 	vote    = `https://top.gg/bot/581956766246633475`
@@ -19,7 +19,7 @@ const (
 
 var examples = strings.TrimSpace("" +
 	"`2d20 + 1` - Roll two D20s and add 1.\n" +
-	"`3dF` - Roll 3 Fate/Fudge dice.\n" +
+	"`4dF` - Roll 4 Fate/Fudge dice.\n" +
 	"`4d6d1` - Roll four D6s and drop the lowest one.\n" +
 	"`2d20kl1` - Keep the lowest result out of two D20s.\n" +
 	"`2d20r1` - Roll two D20s and re-roll all 1s.\n" +
@@ -32,7 +32,7 @@ var examples = strings.TrimSpace("" +
 func makeEmbedHelp() *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
 		Title:       "Dice Golem Help",
-		Description: "I roll dice! I respond to commands like `/roll d20` and @mentions.\n`/info` provides more bot information.",
+		Description: "I roll dice! I respond to commands like `/roll d20` and @mentions.\n</info:581956766246633475> provides more bot information.",
 		Author:      &discordgo.MessageEmbedAuthor{},
 		Fields: []*discordgo.MessageEmbedField{
 			{

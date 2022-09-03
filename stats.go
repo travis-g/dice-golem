@@ -75,7 +75,7 @@ func makeStateEmbed() []*discordgo.MessageEmbed {
 			Fields: []*discordgo.MessageEmbedField{
 				{
 					Name:   "Uptime",
-					Value:  time.Since(startTime).Round(time.Second).String(),
+					Value:  fmt.Sprintf("%s\n<t:%d>", time.Since(startTime).Round(time.Second).String(), startTime.Unix()),
 					Inline: true,
 				},
 				{
@@ -91,13 +91,13 @@ func makeStateEmbed() []*discordgo.MessageEmbed {
 					Inline: true,
 				},
 				{
-					Name:   "Guilds",
-					Value:  humanfmt.Sprintf("%d", stateGuilds),
+					Name:   "Shards",
+					Value:  humanfmt.Sprintf("`%v`", statesShards),
 					Inline: true,
 				},
 				{
-					Name:   "Shards",
-					Value:  humanfmt.Sprintf("`%v`", statesShards),
+					Name:   "Guilds",
+					Value:  humanfmt.Sprintf("%d", stateGuilds),
 					Inline: true,
 				},
 			},
@@ -105,20 +105,27 @@ func makeStateEmbed() []*discordgo.MessageEmbed {
 	}
 }
 
-// emitStats emits gauge metrics. It will try to emit as
+// emitStats emits telemetry metrics. It will try to emit as
 // many metrics as possible.
 func emitStats(b *Bot) {
 	metrics.SetGauge([]string{"core", "heartbeat"}, float32(b.DefaultSession.HeartbeatLatency()/time.Millisecond))
+	metrics.SetGauge([]string{"core", "cache_size"}, float32(len(DiceGolem.Cache.Items())))
+	guilds, _, _, err := guildCount(DiceGolem)
+	if err == nil {
+		metrics.SetGauge([]string{"guilds", "total"}, float32(guilds))
+	}
+
+	// redis cache metrics
 	if DiceGolem.Redis == nil {
 		return
 	}
-	func() {
+	go func() {
 		defer metrics.MeasureSince([]string{"redis", "ping"}, time.Now())
 		_ = DiceGolem.Redis.Ping()
 	}()
-	rolls, err := DiceGolem.Redis.Get("rolls:total").Int64()
-	if err != nil {
+	if rolls, err := DiceGolem.Redis.Get("rolls:total").Int64(); err == nil {
+		metrics.SetGauge([]string{"rolls", "total"}, float32(rolls))
+	} else {
 		logger.Warn("metrics", zap.String("error", "can't retrieve roll count"))
 	}
-	metrics.SetGauge([]string{"rolls", "total"}, float32(rolls))
 }

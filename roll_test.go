@@ -59,6 +59,27 @@ func TestNewRollInputFromString(t *testing.T) {
 			wantData: &RollInput{},
 		},
 		{
+			name:     "other comment only; weird spaces",
+			input:    " |  comment ",
+			wantData: &RollInput{},
+		},
+		// {
+		// 	name:  "leading comment",
+		// 	input: "Arcana: d20+2",
+		// 	wantData: &RollInput{
+		// 		Expression: "d20+2",
+		// 		Label:      "Arcana",
+		// 	},
+		// },
+		// {
+		// 	name:  "doubled comment",
+		// 	input: "Ignored: d20+2 # check",
+		// 	wantData: &RollInput{
+		// 		Expression: "d20+2",
+		// 		Label:      "check",
+		// 	},
+		// },
+		{
 			name:  "roll response",
 			input: "`3d6`: `(5+1+4)` = **10**",
 			wantData: &RollInput{
@@ -90,7 +111,7 @@ func TestNewRollInputFromString(t *testing.T) {
 		},
 		{
 			name:  "formatted message",
-			input: "`3d6 +2` damage `bugus`",
+			input: "`3d6 +2` damage `bogus`",
 			wantData: &RollInput{
 				Expression: "3d6 +2",
 			},

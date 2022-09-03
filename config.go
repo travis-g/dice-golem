@@ -12,7 +12,7 @@ import (
 type Config struct {
 	APIToken   string        `env:"API_TOKEN,required"`
 	APITimeout time.Duration `env:"API_TIMEOUT,default=3s"`
-	Wait       time.Duration `env:"WAIT,default=20s"`
+	Wait       time.Duration `env:"WAIT,default=10s"`
 	Shard      int           `env:"SHARD,default=-1"`
 	Count      int           `env:"COUNT,default=0"`
 	Status     string        `env:"STATUS,default=with fate!"`
@@ -35,10 +35,11 @@ type Config struct {
 
 	// TTL levels, from internal caches to Redis cache
 	CacheTTL   time.Duration `env:"CACHE,default=30m"`
-	HistoryTTL time.Duration `env:"RECENT,default=72h"`
+	RecentTTL  time.Duration `env:"RECENT,default=168h"`
+	HistoryTTL time.Duration `env:"HISTORY,default=336h"`
 
 	// Number of recent rolls to keep in history
-	MaxHistory int `env:"MAX_HISTORY,default=10"`
+	MaxHistory int `env:"MAX_HISTORY,default=20"`
 
 	// Max dice allowed to be rolled per request
 	MaxDice int `env:"MAX_DICE,default=500"`

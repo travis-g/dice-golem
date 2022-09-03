@@ -114,6 +114,7 @@ func EvaluateRollInputWithContext(ctx context.Context, rollInput *RollInput) (re
 	)
 
 	res.ExpressionResult, err = evaluateRoll(ctx, res.Expression)
+	logger.Debug("res", zap.Any("thing", res))
 
 	if err != nil {
 		logger.Error("evaluation error",

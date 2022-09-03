@@ -9,6 +9,12 @@ import (
 	"go.uber.org/zap"
 )
 
+type Serialer interface {
+	Serialize() string
+	Deserialize(s string)
+	String() string
+}
+
 func fuzzyFilterSerials(partial string, recentSerials, savedSerials []string) (matchingSerials []string) {
 	serials := append(savedSerials, recentSerials...)
 	matches := fuzzy.RankFindNormalizedFold(partial, serials)

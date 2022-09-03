@@ -260,3 +260,7 @@ func String(v string) *string {
 func Bool(v bool) *bool {
 	return &v
 }
+
+func Int64(i int64) *int64 {
+	return &i
+}
