@@ -16,8 +16,8 @@ import (
 )
 
 type RollInput struct {
-	Expression string `json:"expression"`
-	Label      string `json:"label,omitempty"`
+	Expression string `json:"e"`
+	Label      string `json:"l,omitempty"`
 }
 
 func (ri *RollInput) String() string {
@@ -33,7 +33,7 @@ func commentFieldFunc(r rune) bool {
 	return r == '\\' || r == '#' || r == delim
 }
 
-var mentionRegexp = regexp.MustCompile(`<.+?>`)
+var mentionRegexp = regexp.MustCompile(`<@.+?>`)
 
 // NewRollInputFromString returns a new RollInput based off an input string with
 // optional comment (i.e. label).
@@ -47,7 +47,7 @@ func NewRollInputFromString(input string) *RollInput {
 	input = strings.TrimSpace(input)
 	// if empty input or notation starts with a comment, short-circuit
 	if input == "" || commentFieldFunc([]rune(input)[0]) {
-		return &RollInput{}
+		return new(RollInput)
 	}
 
 	// check if there's a roll notation or expression

@@ -39,16 +39,7 @@ func IsDirectMessage(m *discordgo.Message) bool {
 	return dm
 }
 
-// FIXME: completely redo this
-func extractExpressionFromString(input string) (expression string) {
-	expression = strings.TrimSpace(input)
-	parts := strings.FieldsFunc(expression, commentFieldFunc)
-	// lowercase everything
-	expression = strings.TrimSpace(strings.ToLower(parts[0]))
-	return
-}
-
-func messageSendFromInteraction(i *discordgo.InteractionResponse) *discordgo.MessageSend {
+func newMessageSendFromInteractionResponse(i *discordgo.InteractionResponse) *discordgo.MessageSend {
 	logger.Debug("converting interaction", zap.Any("interaction", i))
 	return &discordgo.MessageSend{
 		Content:         i.Data.Content,
@@ -124,7 +115,7 @@ type ServerCount struct {
 }
 
 func postServerCount(b *Bot) error {
-	_, _, shardCounts, err := guildCount(b)
+	_, shardCounts, err := guildCount(b)
 	if err != nil {
 		return err
 	}
@@ -154,11 +145,11 @@ func postServerCount(b *Bot) error {
 	return nil
 }
 
-func guildCount(b *Bot) (guilds int, largeGuilds int, sharding []int, err error) {
+func guildCount(b *Bot) (guilds int, sharding []int, err error) {
 	if b == nil {
 		err = errors.New("nil bot")
 		logger.Error(err.Error())
-		return guilds, largeGuilds, sharding, err
+		return guilds, sharding, err
 	}
 
 	// counts of guilds per indexed shard
@@ -167,12 +158,6 @@ func guildCount(b *Bot) (guilds int, largeGuilds int, sharding []int, err error)
 	for i, s := range b.Sessions {
 		guilds += len(s.State.Guilds)
 		sharding[i] = len(s.State.Guilds)
-		// count "large guilds"
-		for _, guild := range s.State.Guilds {
-			if guild.Large {
-				largeGuilds += 1
-			}
-		}
 	}
 	return
 }
@@ -215,6 +200,50 @@ func MarkdownDetails(ctx context.Context, groups []*dice.RollerGroup) string {
 	return b.String()
 }
 
+// FIXME: this shouldn't be full responses themselves
+type RollLog struct {
+	Entries []*Response
+}
+
+func MessageEmbeds(ctx context.Context, log *RollLog) []*discordgo.MessageEmbed {
+	embeds := make([]*discordgo.MessageEmbed, len(log.Entries))
+	if len(embeds) == 0 {
+		return embeds
+	}
+	includeTitles := len(embeds) > 1
+	for i, entry := range log.Entries {
+		embed := new(discordgo.MessageEmbed)
+		if includeTitles {
+			embed.Footer = &discordgo.MessageEmbedFooter{
+				Text: fmt.Sprintf("Roll %d", i+1),
+			}
+		}
+		embed.Fields = []*discordgo.MessageEmbedField{
+			embedField(entry),
+		}
+		embeds[i] = embed
+	}
+	return embeds
+}
+
+func embedField(response *Response) *discordgo.MessageEmbedField {
+	var field = new(discordgo.MessageEmbedField)
+	field.Inline = false
+	field.Name = fmt.Sprintf("%s \u21D2 %s", response.Original, response.Result)
+	var b strings.Builder
+	write := b.WriteString
+	for _, group := range response.Dice {
+		write(MarkdownString(context.TODO(), group))
+		write("\n")
+	}
+	if len(response.Dice) == 0 {
+		write("```cs\n" + response.ExpressionResult.String() + "\n```")
+	}
+	field.Value = strings.TrimSpace(b.String())
+	logger.Debug("field", zap.Any("data", field))
+	return field
+}
+
 // SelfInUsers returns whether the bot's user is contained in a slice of users.
 func SelfInUsers(users []*discordgo.User) (found bool) {
 	for _, user := range users {
@@ -223,6 +252,25 @@ func SelfInUsers(users []*discordgo.User) (found bool) {
 		}
 	}
 	return
+}
+
+func Mention(u *discordgo.User) string {
+	return "<@" + u.ID + ">"
+}
+
+// String is a helper to return a pointer to the supplied string.
+func String(v string) *string {
+	return &v
+}
+
+// Bool is a helper to return a pointer to the supplied boolean.
+func Bool(v bool) *bool {
+	return &v
+}
+
+// Int64 is a helper to return a pointer to the supplied int64.
+func Int64(v int64) *int64 {
+	return &v
 }
 
 // contains returns whether a slice of strings contains a specific string.
@@ -249,18 +297,4 @@ func distinct(in []string) (out []string) {
 		}
 	}
 	return
-}
-
-// String is a helper to return a pointer to the supplied string.
-func String(v string) *string {
-	return &v
-}
-
-// Bool is a helper to return a pointer to the supplied boolean.
-func Bool(v bool) *bool {
-	return &v
-}
-
-func Int64(i int64) *int64 {
-	return &i
 }

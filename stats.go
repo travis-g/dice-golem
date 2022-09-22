@@ -30,7 +30,7 @@ func init() {
 
 // TODO: require a context
 func makeStatsEmbed() []*discordgo.MessageEmbed {
-	guilds, largeGuilds, _, _ := guildCount(DiceGolem)
+	guilds, _, _ := guildCount(DiceGolem)
 
 	rolls, err := DiceGolem.Redis.Get("rolls:total").Int64()
 	if err != nil {
@@ -48,11 +48,6 @@ func makeStatsEmbed() []*discordgo.MessageEmbed {
 					Inline: true,
 				},
 				{
-					Name:   "Large Guilds",
-					Value:  humanfmt.Sprintf("%d", largeGuilds),
-					Inline: true,
-				},
-				{
 					Name:  "Rolls",
 					Value: humanfmt.Sprintf("%d", rolls),
 				},
@@ -63,7 +58,7 @@ func makeStatsEmbed() []*discordgo.MessageEmbed {
 
 // TODO: require a context
 func makeStateEmbed() []*discordgo.MessageEmbed {
-	stateGuilds, _, statesShards, _ := guildCount(DiceGolem)
+	stateGuilds, statesShards, _ := guildCount(DiceGolem)
 
 	memstats := runtime.MemStats{}
 	runtime.ReadMemStats(&memstats)
@@ -110,7 +105,7 @@ func makeStateEmbed() []*discordgo.MessageEmbed {
 func emitStats(b *Bot) {
 	metrics.SetGauge([]string{"core", "heartbeat"}, float32(b.DefaultSession.HeartbeatLatency()/time.Millisecond))
 	metrics.SetGauge([]string{"core", "cache_size"}, float32(len(DiceGolem.Cache.Items())))
-	guilds, _, _, err := guildCount(DiceGolem)
+	guilds, _, err := guildCount(DiceGolem)
 	if err == nil {
 		metrics.SetGauge([]string{"guilds", "total"}, float32(guilds))
 	}

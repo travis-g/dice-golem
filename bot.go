@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -21,24 +23,23 @@ type Bot struct {
 	Sessions       []*discordgo.Session
 	Commands       BotCommands
 	Cache          *Cache
-	User           *discordgo.User
 	Redis          *redis.Client
 }
 
 var DiceGolem *Bot
 
-func NewBotFromConfig(c *BotConfig) *Bot {
-	bot := &Bot{
+func NewBotFromConfig(c *BotConfig) (b *Bot) {
+	b = &Bot{
 		BotConfig: c,
 	}
-	bot.Commands.Global = CommandsGlobalChat
-	bot.Commands.Home = CommandsHomeChat
-	bot.Cache = NewCache(bot.CacheTTL, 5*time.Minute)
-	return bot
+	b.Commands.Global = CommandsGlobalChat
+	b.Commands.Home = CommandsHomeChat
+	b.Cache = NewCache(b.CacheTTL, 5*time.Minute)
+	return b
 }
 
 // intent is the intent value the bot uses when identifying to Discord.
-var intent = discordgo.IntentsDirectMessages | discordgo.IntentsGuildMessages | discordgo.IntentGuilds
+const intent = discordgo.IntentsDirectMessages | discordgo.IntentsGuildMessages | discordgo.IntentGuilds
 
 func (b *Bot) Setup() {
 	var err error
@@ -87,7 +88,7 @@ func (b *Bot) Setup() {
 
 // Open opens sharded sessions based on Discord's /gateway/bot response and
 // returns the number of shards spawned.
-func (b *Bot) Open() (int, error) {
+func (b *Bot) Open() error {
 	defer metrics.MeasureSince([]string{"bot", "open"}, time.Now())
 
 	// Create a new Discord session using the provided bot token.
@@ -104,18 +105,23 @@ func (b *Bot) Open() (int, error) {
 	}
 
 	shards := int(math.Max(float64(gr.Shards), 2))
+	logger.Info("gateway response", zap.Any("data", gr))
 	b.Sessions = make([]*discordgo.Session, shards)
 
 	for i := range b.Sessions {
 		s, err := discordgo.New("Bot " + b.APIToken)
 		if err != nil {
-			return shards, err
+			return err
 		}
 		s.ShardCount = shards
 		s.ShardID = i
 		// set the intent
 		s.Identify.Intents = intent
 		s.LogLevel = discordgo.LogInformational
+
+		s.State.TrackEmojis = false
+		s.State.TrackThreadMembers = false
+		s.State.TrackVoice = false
 
 		s.AddHandler(HandleReady)
 		s.AddHandler(HandleResume)
@@ -128,19 +134,42 @@ func (b *Bot) Open() (int, error) {
 		b.Sessions[i] = s
 	}
 
-	// store session 0 as our default/DM session
+	// use session 0 as our default/DM session
 	b.DefaultSession = b.Sessions[0]
 
+	// create a WaitGroup to ensure that we can open sessions concurrently but
+	// still wait until we've also got core bot info back from Discord. This
+	// should use a worker pool for bucketed sharding with max_concurrency:
+	// https://gobyexample.com/worker-pools
+	var wg sync.WaitGroup
+
 	for i, s := range b.Sessions {
-		logger.Info("opening session", zap.Int("shard", i))
-		if err := openSession(i, s); err != nil {
-			logger.Error("error opening session", zap.Int("shard", i), zap.Error(err))
+		wg.Add(1)
+		go func(index int, session *discordgo.Session) {
+			defer wg.Done()
+			logger.Info("opening session", zap.Int("shard", index))
+			if err := openSession(index, session); err != nil {
+				logger.Error("error opening session", zap.Int("shard", index), zap.Error(err))
+			}
+		}(i, s)
+	}
+
+	// block until bot is at least self-aware
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	wg.Add(1)
+	for {
+		if DiceGolem.DefaultSession.State.User != nil || ctx.Err() != nil {
+			logger.Info("user data", zap.Any("user", DiceGolem.DefaultSession.State.User))
+			wg.Done()
+			break
 		}
 	}
 
-	b.User = b.DefaultSession.State.User
+	// wait until sessions are open
+	wg.Wait()
 
-	return shards, nil
+	return nil
 }
 
 func openSession(i int, s *discordgo.Session) (err error) {

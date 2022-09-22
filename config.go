@@ -37,9 +37,11 @@ type Config struct {
 	CacheTTL   time.Duration `env:"CACHE,default=30m"`
 	RecentTTL  time.Duration `env:"RECENT,default=168h"`
 	HistoryTTL time.Duration `env:"HISTORY,default=336h"`
+	DataTTL    time.Duration `env:"DATA,default=744h"`
 
 	// Number of recent rolls to keep in history
 	MaxHistory int `env:"MAX_HISTORY,default=20"`
+	MaxRolls   int `env:"MAX_ROLLS,default=20"`
 
 	// Max dice allowed to be rolled per request
 	MaxDice int `env:"MAX_DICE,default=500"`
@@ -63,8 +65,6 @@ func NewBotConfig() *BotConfig {
 	if err := envconfig.Process(ctx, &c); err != nil {
 		panic(err)
 	}
-	if err := c.Validate(); err != nil {
-		// TODO: error on validation error
-	}
+	// TODO: check for Validate() error
 	return &c
 }

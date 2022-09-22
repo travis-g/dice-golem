@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -20,6 +21,7 @@ import (
 	"github.com/travis-g/dice"
 	"github.com/travis-g/dice/math"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // Default variable settings.
@@ -55,24 +57,32 @@ var (
 )
 
 var (
-	manyDice = regexp.MustCompile(`(?:^|\b(?P<num>\d{3,}))(d|f)`)
+	manyDice = regexp.MustCompile(`(?i)(?:^|\b(?P<num>\d{3,}))(d|f)`)
 )
 
-// Response is a message response for dice roll responses.
-type Response struct {
-	*math.ExpressionResult
-	// Name is who made the roll (optional)
-	Name          string
-	Rolled        string
-	Result        string
-	Expression    string
-	Label         string
-	FriendlyError error
+// Discord library init
+func init() {
+	discordgo.APIVersion = "10"
+	// logging init
+	discordgo.Logger = func(msgL, caller int, format string, a ...interface{}) {
+		var f func(msg string, fields ...zapcore.Field)
+		pc, _, _, _ := runtime.Caller(caller + 1)
+		name := runtime.FuncForPC(pc).Name()
+		switch msgL {
+		case discordgo.LogDebug:
+			f = logger.Debug
+		case discordgo.LogInformational:
+			f = logger.Info
+		case discordgo.LogWarning:
+			f = logger.Warn
+		case discordgo.LogError:
+			f = logger.Error
+		}
+		f(fmt.Sprintf(format, a...), zap.String("source", name))
+	}
 }
 
 func main() {
-	discordgo.APIVersion = "10"
-
 	DiceGolem = NewBotFromConfig(NewBotConfig())
 	DiceGolem.Setup()
 	logger.Debug("loaded config", zap.Any("config", DiceGolem))
@@ -82,7 +92,7 @@ func main() {
 		http.ListenAndServe(":6060", nil)
 	}()
 
-	shards, err := DiceGolem.Open()
+	err := DiceGolem.Open()
 	if err != nil {
 		logger.Fatal("error opening connections", zap.Error(err))
 	}
@@ -93,7 +103,7 @@ func main() {
 		Content: ResponsePrefix,
 		Embeds: []*discordgo.MessageEmbed{
 			{
-				Description: fmt.Sprintf("Started %d shards!", shards),
+				Description: fmt.Sprintf("Started %d shards!", len(DiceGolem.Sessions)),
 				Footer: &discordgo.MessageEmbedFooter{
 					Text:    DiceGolem.DefaultSession.State.User.Username,
 					IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
@@ -237,7 +247,7 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 		metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	ctx = NewContext(ctx, s, i.Interaction, nil)
 	ctx = context.WithValue(ctx, dice.CtxKeyMaxRolls, int(float64(DiceGolem.MaxDice)*1.2))
@@ -319,19 +329,26 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 
 	// Auto-complete events with users' partial input data
 	case discordgo.InteractionApplicationCommandAutocomplete:
-		option := getFocusedOption(i.ApplicationCommandData()).Name
+		opt, param := getFocusedOption(i.ApplicationCommandData())
+		if opt == nil {
+			return
+		}
 		defer metrics.MeasureSince([]string{"core", "autocomplete"}, time.Now())
-		if suggest, ok := suggesters[option]; ok {
+		if suggest, ok := suggesters[param]; ok {
+			logger.Debug("calling suggester", zap.Any("name", param))
 			suggest(ctx)
+		} else {
+			panic(errors.New("unhandled autocomplete parameter: " + param))
 		}
 	}
 }
 
 func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	defer HandlePanic(s, m.Message)
-	defer metrics.IncrCounter([]string{"core", "message_in"}, 1)
+	go metrics.IncrCounter([]string{"core", "message_in"}, 1)
 	logger.Debug("message_in", zap.Any("message", m))
-	// no content means there's no roll text to process
+	// no content means there's no roll text to process (or it's not meant for
+	// the bot to see at all)
 	if m.Content == "" {
 		return
 	}
@@ -352,7 +369,7 @@ func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	logger.Debug("handle message",
@@ -361,6 +378,10 @@ func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		zap.String("guild", m.GuildID),
 		zap.Int("shard", s.ShardID),
 	)
+	go func() {
+		metrics.IncrCounter([]string{"core", "interaction"}, 1)
+		metrics.IncrCounter([]string{"interaction", "message"}, 1)
+	}()
 
 	ctx = NewContext(ctx, s, nil, m.Message)
 	res, message, rollErr := NewMessageResponseFromMessage(ctx, m.Message)
@@ -403,14 +424,4 @@ func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 func HandleRateLimit(s *discordgo.Session, e *discordgo.RateLimit) {
 	logger.Warn("rate limited", zap.Any("event", e))
 	metrics.IncrCounter([]string{"core", "rate_limit"}, 1)
-	if err := DiceGolem.EmitNotificationMessage(&discordgo.MessageSend{
-		Embeds: []*discordgo.MessageEmbed{
-			{
-				Description: fmt.Sprintf("Rate limit hit on shard %d", s.ShardID),
-				Color:       0xed4245, // rgb(237, 66, 69)
-			},
-		},
-	}); err != nil {
-		logger.Error("notify", zap.Error(err))
-	}
 }

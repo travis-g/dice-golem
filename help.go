@@ -15,6 +15,8 @@ const (
 	support = "https://discord.gg/XUkXda5"
 	invite  = `https://discord.com/api/oauth2/authorize?client_id=581956766246633475&permissions=274878195712&scope=bot%20applications.commands`
 	vote    = `https://top.gg/bot/581956766246633475`
+	privacy = `https://github.com/travis-g/dice-golem/blob/main/website/privacy.md`
+	terms   = `https://github.com/travis-g/dice-golem/blob/main/website/terms.md`
 )
 
 var examples = strings.TrimSpace("" +
@@ -87,7 +89,7 @@ var InfoEmbedFields = []*discordgo.MessageEmbedField{
 	},
 	{
 		Name:  "Links",
-		Value: fmt.Sprintf("[Support Server](%s) | [Info (Top.gg)](%s)", support, vote),
+		Value: fmt.Sprintf("[Support Server](%s) | [Info (Top.gg)](%s)\n[Privacy Policy](%s) | [Terms of Service](%s)", support, vote, privacy, terms),
 	},
 }
 

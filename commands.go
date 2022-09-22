@@ -1,6 +1,10 @@
 package main
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"strings"
+
+	"github.com/bwmarrin/discordgo"
+)
 
 type BotCommands struct {
 	Global []*discordgo.ApplicationCommand
@@ -142,6 +146,10 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		// 	discordgo.SpanishES: "botones",
 		// },
 	},
+	{
+		Name:        "invite",
+		Description: "Invite the bot to another server",
+	},
 	// TODO: break into commandsGlobalMessage[]
 	{
 		Name: "Roll Message",
@@ -172,47 +180,73 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 		DefaultMemberPermissions: Int64(0),
 		DefaultPermission:        Bool(false),
 	},
-	// {
-	// 	Name:        "macro",
-	// 	Description: "Commands for saved rolls",
-	// 	Options: []*discordgo.ApplicationCommandOption{
-	// 		{
-	// 			Name:        "set",
-	// 			Description: "Save a roll with an optional name and label",
-	// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-	// 		},
-	// 		{
-	// 			Name:        "delete",
-	// 			Description: "Delete a saved macro",
-	// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-	// 		},
-	// 		{
-	// 			Name:        "list",
-	// 			Description: "List your saved macros",
-	// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-	// 		},
-	// 		// {
-	// 		// 	Name:        "import",
-	// 		// 	Description: "Import a set of saved rolls",
-	// 		// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-	// 		// },
-	// 		// {
-	// 		// 	Name:        "export",
-	// 		// 	Description: "Export your list of saved rolls",
-	// 		// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-	// 		// },
-	// 	},
-	// },
-	// {
-	// 	Name:        "debug",
-	// 	Description: "The debug interaction handler",
-	// },
+	{
+		Name:        "clear",
+		Description: "Data removal commands",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "recent",
+				Description: "Clear your recent roll history",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
+			{
+				Name:        "expressions",
+				Description: "Clear your saved roll exressions",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
+		},
+	},
+	{
+		Name:        "expressions",
+		Description: "Commands for managing saved expressions",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "save",
+				Description: "Save an expression with an optional name and label",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options:     MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsName),
+			},
+			{
+				Name:        "unsave",
+				Description: "Remove a saved expression",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: MakeApplicationCommandOptions([]*discordgo.ApplicationCommandOption{
+					{
+						Type:         discordgo.ApplicationCommandOptionString,
+						Name:         "expression",
+						Description:  "Saved expression to remove",
+						Autocomplete: true,
+						Required:     true,
+					},
+				}),
+			},
+			// {
+			// 	Name:        "list",
+			// 	Description: "List your saved expressions",
+			// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
+			// },
+			// {
+			// 	Name:        "import",
+			// 	Description: "Import a set of saved rolls",
+			// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
+			// },
+			// {
+			// 	Name:        "export",
+			// 	Description: "Export your saved rolls",
+			// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
+			// },
+		},
+	},
+	{
+		Name:        "debug",
+		Description: "The debug interaction handler",
+	},
 	// {
 	// 	Name: "Save Roll",
 	// 	Type: discordgo.MessageApplicationCommand,
-	// 	NameLocalizations: &map[discordgo.Locale]string{
-	// 		discordgo.SpanishES: "Guardar tira",
-	// 	},
+	// 	// NameLocalizations: &map[discordgo.Locale]string{
+	// 	// 	discordgo.SpanishES: "Guardar tira",
+	// 	// },
 	// },
 }
 
@@ -258,9 +292,10 @@ var (
 	}
 	rollOptionsName = []*discordgo.ApplicationCommandOption{
 		{
-			Type:        discordgo.ApplicationCommandOptionBoolean,
-			Name:        "name",
-			Description: "Friendly name of the roll",
+			Type:         discordgo.ApplicationCommandOptionString,
+			Name:         "name",
+			Description:  "Name for the expression, like 'Fireball', or existing expression to update",
+			Autocomplete: true,
 		},
 	}
 	// helper to fetch a command option value given a name rather than an index
@@ -269,16 +304,32 @@ var (
 			if opt.Name == name {
 				return opt
 			}
-		}
-		return nil
-	}
-	// get focused option for autocompletion
-	getFocusedOption = func(data discordgo.ApplicationCommandInteractionData) *discordgo.ApplicationCommandInteractionDataOption {
-		for _, opt := range data.Options {
-			if opt.Focused {
-				return opt
+			for _, subOpt := range opt.Options {
+				if subOpt.Name == name {
+					return subOpt
+				}
 			}
 		}
 		return nil
 	}
 )
+
+// get focused option and path in the command tree
+func getFocusedOption(data discordgo.ApplicationCommandInteractionData) (option *discordgo.ApplicationCommandInteractionDataOption, path string) {
+	var param strings.Builder
+	param.WriteString(data.Name)
+	for _, opt := range data.Options {
+		if opt.Focused {
+			param.WriteString(":" + opt.Name)
+			return opt, param.String()
+		}
+		for _, subOpt := range opt.Options {
+			if subOpt.Focused {
+				param.WriteString(" " + opt.Name)
+				param.WriteString(":" + subOpt.Name)
+				return subOpt, param.String()
+			}
+		}
+	}
+	return nil, param.String()
+}

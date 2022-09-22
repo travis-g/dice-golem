@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/bwmarrin/discordgo"
+	"github.com/gocarina/gocsv"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	redis "gopkg.in/redis.v3"
@@ -68,6 +71,7 @@ const (
 	CacheKeyGuildSettingFormat     = "cache:guild:%s:%s"
 	CacheKeyInteractionTokenFormat = "cache:token:%s"
 	CacheKeyUserRecentFormat       = "cache:user:%s:recent"
+	CacheKeyUserRollsFormat        = "cache:user:%s:expressions"
 )
 
 // pray this is never used in a roll or label
@@ -90,8 +94,10 @@ func (r *RollInput) Serialize() string {
 
 // Deserialize loads a roll input from a serialized string.
 func (r *RollInput) Deserialize(serial string) {
+	if r == nil {
+		r = new(RollInput)
+	}
 	if serial == "" {
-		r = &RollInput{}
 		return
 	}
 	parts := strings.Split(serial, string(delim))
@@ -144,7 +150,7 @@ func CachedSerials(u *discordgo.User) (serials []string, err error) {
 		return []string{}, ErrNoRedisClient
 	}
 	key := fmt.Sprintf(CacheKeyUserRecentFormat, u.ID)
-	// get latest to earliest roll list
+	// get roll list sorted from recent to earliest
 	func() {
 		defer metrics.MeasureSince([]string{"redis", "zrevrange"}, time.Now())
 		slice := DiceGolem.Redis.ZRevRange(key, 0, -1)
@@ -169,4 +175,36 @@ func CachedRolls(u *discordgo.User) (rolls []RollInput, err error) {
 		rolls = append(rolls, roll)
 	}
 	return rolls, err
+}
+
+func CachedNamedRolls(key string) []*NamedRollInput {
+	cmd := DiceGolem.Redis.HGetAllMap(key)
+	data, err := cmd.Result()
+	if err != nil {
+		return nil
+	}
+	rolls := []*NamedRollInput{}
+	for _, serial := range data {
+		roll := new(NamedRollInput)
+		jErr := json.Unmarshal([]byte(serial), roll)
+		if jErr == nil {
+			rolls = append(rolls, roll)
+		} else {
+			logger.Error("json unmarshal error", zap.Any("serial", serial))
+		}
+	}
+
+	return rolls
+}
+
+func ExportExpressions(expressions []*NamedRollInput) *discordgo.File {
+	out, err := gocsv.MarshalBytes(&expressions)
+	if err != nil {
+		return nil
+	}
+	return &discordgo.File{
+		Name:        "expressions.csv",
+		ContentType: "text/csv; charset=utf-8",
+		Reader:      bytes.NewReader(out),
+	}
 }
