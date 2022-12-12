@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -14,18 +13,6 @@ import (
 	"github.com/travis-g/dice/math"
 	"go.uber.org/zap"
 )
-
-type RollInput struct {
-	Expression string `json:"e"`
-	Label      string `json:"l,omitempty"`
-}
-
-func (ri *RollInput) String() string {
-	if ri.Label == "" {
-		return ri.Expression
-	}
-	return strings.Join([]string{ri.Expression, ri.Label}, " # ")
-}
 
 // commentFieldFunc returns whether a rune is a comment character. Used for
 // splitting roll inputs that contain comments/labels.
@@ -39,7 +26,7 @@ var mentionRegexp = regexp.MustCompile(`<@.+?>`)
 // optional comment (i.e. label).
 //
 // TODO: fuzzy-parse rolls from inputs, ex. "roll 3d6 + 4 damage" => "3d6 + 4"
-func NewRollInputFromString(input string) *RollInput {
+func NewRollInputFromString(input string) *NamedRollInput {
 	// strip any mentions and Discord-specific tag things
 	input = mentionRegexp.ReplaceAllString(input, "")
 	input = strings.TrimPrefix(input, "/roll")
@@ -47,21 +34,29 @@ func NewRollInputFromString(input string) *RollInput {
 	input = strings.TrimSpace(input)
 	// if empty input or notation starts with a comment, short-circuit
 	if input == "" || commentFieldFunc([]rune(input)[0]) {
-		return new(RollInput)
+		return new(NamedRollInput)
 	}
+
+	data := new(NamedRollInput)
+	code := input
 
 	// check if there's a roll notation or expression
 	reCode := regexp.MustCompile("`(.+?)`")
-	matches := reCode.FindStringSubmatch(input)
+	matches := reCode.FindStringSubmatch(code)
 	if len(matches) > 0 {
-		input = matches[1]
+		data = NewRollInputFromString(matches[1])
+		code = matches[1]
+	}
+
+	reLabel := regexp.MustCompile(`_(.+?)_`)
+	matches = reLabel.FindStringSubmatch(input)
+	if len(matches) > 0 {
+		data.Label = matches[1]
 	}
 
 	// split at label/comment
-	parts := strings.FieldsFunc(input, commentFieldFunc)
-	data := &RollInput{
-		Expression: strings.TrimSpace(parts[0]),
-	}
+	parts := strings.FieldsFunc(code, commentFieldFunc)
+	data.Expression = strings.TrimSpace(parts[0])
 	if len(parts) > 1 {
 		// remove everything prior to the first split loc carefully. first rune
 		// after cutting off the expression will be a comment char
@@ -73,20 +68,19 @@ func NewRollInputFromString(input string) *RollInput {
 
 // NewRollInputFromMessage parses and returns a RollInput from the content
 // of a Discord message.
-func NewRollInputFromMessage(m *discordgo.Message) (data *RollInput) {
+func NewRollInputFromMessage(m *discordgo.Message) (data *NamedRollInput) {
 	return NewRollInputFromString(m.Content)
 }
 
 // EvaluateRollInputWithContext takes a RollInput and executes it, returning a
 // Response and any errors encountered.
-func EvaluateRollInputWithContext(ctx context.Context, rollInput *RollInput) (res *Response, err error) {
+func EvaluateRollInputWithContext(ctx context.Context, rollInput *NamedRollInput) (res *Response, err error) {
 	defer recover()
 	s, i, m := FromContext(ctx)
 	if s == nil || (i == nil && m == nil) {
-		panic(errors.New("context data missing"))
+		panic("context data missing")
 	}
 
-	logger.Debug("evaluating", zap.Any("input", rollInput))
 	res = &Response{
 		Expression: rollInput.Expression,
 		Label:      rollInput.Label,
@@ -130,11 +124,6 @@ func EvaluateRollInputWithContext(ctx context.Context, rollInput *RollInput) (re
 
 	go trackRollFromContext(ctx)
 
-	// Log the result if debugging
-	logger.Debug("rolled",
-		zap.Float64("result", res.ExpressionResult.Result),
-	)
-
 	res.Rolled = res.ExpressionResult.Rolled
 	res.Result = strconv.FormatFloat(res.ExpressionResult.Result, 'f', -1, 64)
 	return
@@ -149,8 +138,8 @@ func evaluateRoll(ctx context.Context, roll string) (res *math.ExpressionResult,
 
 // cacheRollInput caches the roll from an interaction if an interaction was
 // sent successfully.
-func cacheRollInput(s *discordgo.Session, i *discordgo.Interaction, roll *RollInput) {
+func cacheRollInput(s *discordgo.Session, i *discordgo.Interaction, roll *NamedRollInput) {
 	if responseID, err := GetInteractionResponse(s, i); err == nil {
-		DiceGolem.Cache.SetWithTTL(fmt.Sprintf(CacheKeyMessageDataFormat, responseID), roll.Serialize(), DiceGolem.CacheTTL)
+		DiceGolem.Cache.SetWithTTL(fmt.Sprintf(KeyMessageDataFmt, responseID), roll.Serialize(), DiceGolem.CacheTTL)
 	}
 }

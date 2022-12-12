@@ -176,3 +176,52 @@ func TestNamedRollInput_ID(t *testing.T) {
 		})
 	}
 }
+
+func TestNamedRollInput_RollString(t *testing.T) {
+	type fields struct {
+		Expression string
+		Name       string
+		Label      string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{name: "full",
+			fields: fields{
+				Name:       "Inflict Wounds",
+				Expression: "3d10",
+				Label:      "necrotic dmg",
+			},
+			want: "3d10 # necrotic dmg",
+		},
+		{
+			name: "expression only",
+			fields: fields{
+				Expression: "3d10",
+			},
+			want: "3d10",
+		},
+		{
+			name: "label only",
+			fields: fields{
+				Expression: "3d10",
+				Label:      "label",
+			},
+			want: "3d10 # label",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			i := &NamedRollInput{
+				Expression: tt.fields.Expression,
+				Name:       tt.fields.Name,
+				Label:      tt.fields.Label,
+			}
+			if got := i.RollableString(); got != tt.want {
+				t.Errorf("NamedRollInput.RollString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

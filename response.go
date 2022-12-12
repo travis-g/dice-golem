@@ -25,7 +25,7 @@ func (r *Response) Interaction(ctx context.Context) (i *discordgo.Interaction) {
 	_, in, _ := FromContext(ctx)
 	u := UserFromInteraction(in)
 	if isRollPublic(i) {
-		r.Name = Mention(u)
+		r.Name = MentionUser(u)
 	}
 
 	return i

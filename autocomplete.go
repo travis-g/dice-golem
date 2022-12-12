@@ -24,54 +24,115 @@ func fuzzyFilterSerials(partial string, recentSerials, savedSerials []string) (m
 	return
 }
 
+// ranked filter option choices using a partial string input
+func fuzzyFilterOptionChoices(partial string, choices []*discordgo.ApplicationCommandOptionChoice) (matches []*discordgo.ApplicationCommandOptionChoice) {
+	choices = DistinctChoices(choices)
+	mchoices := make(map[string]*discordgo.ApplicationCommandOptionChoice)
+	schoices := make([]string, len(choices))
+	for i, choice := range choices {
+		mchoices[choice.Name] = choice
+		schoices[i] = choice.Name
+	}
+	rmatches := fuzzy.RankFindNormalizedFold(partial, schoices)
+	sort.Sort(rmatches)
+	smatches := TargetsFromRanks(rmatches)
+	matches = make([]*discordgo.ApplicationCommandOptionChoice, len(smatches))
+	for i, smatch := range smatches {
+		matches[i] = mchoices[smatch]
+	}
+	return
+}
+
 func RollSliceFromSerials(serials []string) RollSlice {
-	rolls := make([]*RollInput, len(serials))
+	rolls := make([]*NamedRollInput, len(serials))
 	for i, serial := range serials {
-		var ri = new(RollInput)
+		var ri = new(NamedRollInput)
 		ri.Deserialize(serial)
 		rolls[i] = ri
 	}
 	return rolls
 }
 
-func SuggestExpression(ctx context.Context) {
+func SuggestRollsByString(ctx context.Context) {
 	s, i, _ := FromContext(ctx)
 
 	data := i.ApplicationCommandData()
-	user := UserFromInteraction(i)
+	u := UserFromInteraction(i)
 
-	recents, err := CachedSerials(user)
-	logger.Debug("cached serials", zap.Any("serials", recents))
+	recents, err := CachedSerials(u)
 	if err != nil {
 		logger.Error("cache error", zap.Error(err))
 	}
 
+	var choices []*discordgo.ApplicationCommandOptionChoice
+	saved := SavedNamedRolls(fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID))
+
 	// fuzzy-filtered stored rolls
-	var slice RollSlice
-	if input := getOptionByName(data.Options, "expression").StringValue(); input == "" {
-		slice = RollSliceFromSerials(recents)
+	input := getOptionByName(data.Options, "expression").StringValue()
+	if input == "" {
+		choices = ChoicesFromRollSliceExpression(trunc(RollSliceFromSerials(recents), 5))
+		choices = append(choices, ChoicesFromRollSlice(saved)...)
 	} else {
-		// include current input first
-		serials := []string{input}
 		// only sort by similarity if the user's entered something. by default
 		// the ranking should be by recency
-		serials = append(serials, fuzzyFilterSerials(input, recents, []string{})...)
-		slice = RollSliceFromSerials(serials)
+		choices = ChoicesFromRollSliceExpression(RollSliceFromSerials(recents))
+		choices = append(choices, ChoicesFromRollSlice(saved)...)
+		choices = fuzzyFilterOptionChoices(input, choices)
+		choices = append(
+			[]*discordgo.ApplicationCommandOptionChoice{{Name: input, Value: input}},
+			choices...,
+		)
 	}
 
-	choices := DistinctChoices(ChoicesFromRollSlice(slice))
+	choices = DistinctChoices(choices)
+	choices = trunc(choices, 25)
 
-	logger.Debug("choices", zap.Any("data", choices))
+	logger.Debug("choices", zap.String("input", input), zap.Any("options", choices))
 
-	_ = MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-		Data: &discordgo.InteractionResponseData{
-			Choices: choices,
-		},
-	})
+	if err := MeasureInteractionRespond(s.InteractionRespond, i, newChoicesResponse(choices)); err != nil {
+		logger.Error("autocomplete", zap.Error(err), zap.String("user", u.ID))
+	}
 }
 
-func SuggestName(ctx context.Context) {
+func SuggestExpressions(ctx context.Context) {
+	s, i, _ := FromContext(ctx)
+
+	data := i.ApplicationCommandData()
+	u := UserFromInteraction(i)
+
+	recents, err := CachedSerials(u)
+	if err != nil {
+		logger.Error("cache error", zap.Error(err))
+	}
+
+	var choices []*discordgo.ApplicationCommandOptionChoice
+	saved := SavedNamedRolls(fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID))
+
+	// fuzzy-filtered stored rolls
+	input := getOptionByName(data.Options, "expression").StringValue()
+	choices = ChoicesFromRollSliceExpression(RollSliceFromSerials(recents))
+	choices = append(choices, ChoicesFromRollSliceExpression(saved)...)
+	if input != "" {
+		// only sort by similarity if the user's entered something. by default
+		// the ranking should be by recency
+		choices = fuzzyFilterOptionChoices(input, choices)
+		choices = append(
+			[]*discordgo.ApplicationCommandOptionChoice{{Name: input, Value: input}},
+			choices...,
+		)
+	}
+
+	choices = DistinctChoices(choices)
+	choices = trunc(choices, 25)
+
+	logger.Debug("choices", zap.String("input", input), zap.Any("options", choices))
+
+	if err := MeasureInteractionRespond(s.InteractionRespond, i, newChoicesResponse(choices)); err != nil {
+		logger.Error("autocomplete", zap.Error(err), zap.String("user", u.ID))
+	}
+}
+
+func SuggestNames(ctx context.Context) {
 	s, i, _ := FromContext(ctx)
 
 	data := i.ApplicationCommandData()
@@ -88,7 +149,7 @@ func SuggestName(ctx context.Context) {
 		panic("unreachable code")
 	}
 
-	rolls := CachedNamedRolls(fmt.Sprintf(CacheKeyUserRollsFormat, u.ID))
+	rolls := SavedNamedRolls(fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID))
 
 	switch {
 	case data.Name == "expressions" && data.Options[0].Name == "unsave":
@@ -144,16 +205,15 @@ func SuggestName(ctx context.Context) {
 			})
 		}
 	default:
+		panic("unreachable code")
 	}
 
+	// truncate to max options count
+	choices = trunc(choices, 25)
 	logger.Debug("name choices", zap.Any("data", choices))
 
-	if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-		Data: &discordgo.InteractionResponseData{
-			Choices: choices,
-		},
-	}); err != nil {
+	if err := MeasureInteractionRespond(s.InteractionRespond, i,
+		newChoicesResponse(choices)); err != nil {
 		logger.Error("autocomplete", zap.Error(err))
 	}
 }
@@ -164,12 +224,11 @@ func SuggestLabel(ctx context.Context) {
 	data := i.ApplicationCommandData()
 	user := UserFromInteraction(i)
 	rolls, err := CachedRolls(user)
-	logger.Debug("cached rolls", zap.Any("rolls", rolls))
 	if err != nil {
 		logger.Error("cache error", zap.Error(err))
 	}
+	logger.Debug("cached rolls", zap.Any("rolls", rolls))
 
-	// TODO: include current input when dedup options
 	options := DistinctRollLabels(rolls)
 	input := getOptionByName(data.Options, "label").StringValue()
 	if input != "" {
@@ -180,29 +239,24 @@ func SuggestLabel(ctx context.Context) {
 		sort.Sort(matches)
 		options = TargetsFromRanks(matches)
 	}
+
 	choices := DistinctChoices(ChoicesFromStrings(options))
+	choices = trunc(choices, 25)
 	logger.Debug("choices", zap.Any("data", choices))
 
-	if err = MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-		Data: &discordgo.InteractionResponseData{
-			Choices: choices,
-		},
-	}); err != nil {
+	if err = MeasureInteractionRespond(s.InteractionRespond, i,
+		newChoicesResponse(choices)); err != nil {
 		logger.Error("autocomplete", zap.Error(err))
 	}
 }
 
-func ChoicesFromRollSlice(rolls RollSlice) []*discordgo.ApplicationCommandOptionChoice {
+func ChoicesFromRollSliceExpression(rolls RollSlice) []*discordgo.ApplicationCommandOptionChoice {
 	if len(rolls) == 0 {
-		return []*discordgo.ApplicationCommandOptionChoice{}
+		return make([]*discordgo.ApplicationCommandOptionChoice, 0)
 	}
 	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(rolls))
 	for i, roll := range rolls {
 		choice := &discordgo.ApplicationCommandOptionChoice{
-			// FIXME: wait until parser improvements are made
-			// Name:  strings.TrimSpace(fmt.Sprintf("%s %s", roll.Expression, roll.Label)),
-			// Value: roll.Serialize(),
 			Name:  roll.Expression,
 			Value: roll.Expression,
 		}
@@ -211,9 +265,52 @@ func ChoicesFromRollSlice(rolls RollSlice) []*discordgo.ApplicationCommandOption
 	return choices
 }
 
+func ExpressionChoicesFromRollSlice(rolls RollSlice) []*discordgo.ApplicationCommandOptionChoice {
+	if len(rolls) == 0 {
+		return make([]*discordgo.ApplicationCommandOptionChoice, 0)
+	}
+	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(rolls))
+	for i, roll := range rolls {
+		choices[i] = &discordgo.ApplicationCommandOptionChoice{
+			Name:  roll.Expression,
+			Value: roll.Expression,
+		}
+	}
+	return choices
+}
+
+func ChoicesFromRollSlice(rolls RollSlice) []*discordgo.ApplicationCommandOptionChoice {
+	if len(rolls) == 0 {
+		return make([]*discordgo.ApplicationCommandOptionChoice, 0)
+	}
+	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(rolls))
+	for i, roll := range rolls {
+		choice := new(discordgo.ApplicationCommandOptionChoice)
+		choice.Name = roll.String()
+		choice.Value = roll.RollableString()
+		choices[i] = choice
+	}
+	return choices
+}
+
+func ChoicesFromRollSliceNames(rolls RollSlice) []*discordgo.ApplicationCommandOptionChoice {
+	if len(rolls) == 0 {
+		return make([]*discordgo.ApplicationCommandOptionChoice, 0)
+	}
+	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(rolls))
+	for i, roll := range rolls {
+		choice := &discordgo.ApplicationCommandOptionChoice{
+			Name:  roll.String(),
+			Value: roll.RollableString(),
+		}
+		choices[i] = choice
+	}
+	return choices
+}
+
 func ChoicesFromStrings(slice []string) []*discordgo.ApplicationCommandOptionChoice {
 	if len(slice) == 0 {
-		return []*discordgo.ApplicationCommandOptionChoice{}
+		return make([]*discordgo.ApplicationCommandOptionChoice, 0)
 	}
 	choices := make([]*discordgo.ApplicationCommandOptionChoice, len(slice))
 	for i, value := range slice {
@@ -228,6 +325,9 @@ func ChoicesFromStrings(slice []string) []*discordgo.ApplicationCommandOptionCho
 
 // DistinctChoices deduplicates a set of option choices by the choices' Names.
 func DistinctChoices(choices []*discordgo.ApplicationCommandOptionChoice) (list []*discordgo.ApplicationCommandOptionChoice) {
+	if len(choices) == 0 {
+		return make([]*discordgo.ApplicationCommandOptionChoice, 0)
+	}
 	uniques := make(map[string]bool)
 	for _, choice := range choices {
 		if _, found := uniques[choice.Name]; !found {
@@ -235,49 +335,55 @@ func DistinctChoices(choices []*discordgo.ApplicationCommandOptionChoice) (list 
 			list = append(list, choice)
 		}
 	}
-	return
+	return list
 }
 
-func DistinctRollExpressions(rolls []RollInput) (list []string) {
-	expressions := make(map[string]bool)
+func DistinctRollExpressions(rolls []NamedRollInput) (expressions []string) {
+	if len(rolls) == 0 {
+		return make([]string, 0)
+	}
+	uniques := make(map[string]bool)
 	for _, roll := range rolls {
 		if roll.Expression == "" {
 			continue
 		}
-		if _, found := expressions[roll.Expression]; !found {
-			expressions[roll.Expression] = true
-			list = append(list, roll.Expression)
+		if _, found := uniques[roll.Expression]; !found {
+			uniques[roll.Expression] = true
+			expressions = append(expressions, roll.Expression)
 		}
 	}
-	return list
+	return expressions
 }
 
-func DistinctRollLabels(rolls []RollInput) (list []string) {
-	labels := make(map[string]bool)
+func DistinctRollLabels(rolls []NamedRollInput) (labels []string) {
+	uniques := make(map[string]bool)
 	for _, roll := range rolls {
 		if roll.Label == "" {
 			continue
 		}
-		if _, found := labels[roll.Label]; !found {
-			labels[roll.Label] = true
-			list = append(list, roll.Label)
+		if _, found := uniques[roll.Label]; !found {
+			uniques[roll.Label] = true
+			labels = append(labels, roll.Label)
 		}
 	}
-	return list
+	return labels
 }
 
-func DistinctExpressionNames(rolls []*NamedRollInput) (list []string) {
-	names := make(map[string]bool)
+func DistinctExpressionNames(rolls []*NamedRollInput) (names []string) {
+	if len(rolls) == 0 {
+		return make([]string, 0)
+	}
+	uniques := make(map[string]bool)
 	for _, roll := range rolls {
 		if roll.Name == "" {
 			continue
 		}
-		if _, found := names[roll.Name]; !found {
-			names[roll.Name] = true
-			list = append(list, roll.Name)
+		if _, found := uniques[roll.Name]; !found {
+			uniques[roll.Name] = true
+			names = append(names, roll.Name)
 		}
 	}
-	return
+	return names
 }
 
 func TargetsFromRanks(ranks fuzzy.Ranks) []string {

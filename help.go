@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -22,10 +21,10 @@ const (
 var examples = strings.TrimSpace("" +
 	"`2d20 + 1` - Roll two D20s and add 1.\n" +
 	"`4dF` - Roll 4 Fate/Fudge dice.\n" +
-	"`4d6d1` - Roll four D6s and drop the lowest one.\n" +
-	"`2d20kl1` - Keep the lowest result out of two D20s.\n" +
+	"`4d6d1` - Roll four D6s and drop the lowest die's result.\n" +
+	"`3d20kl1` - Keep only the lowest result out of three D20s.\n" +
 	"`2d20r1` - Roll two D20s and re-roll all 1s.\n" +
-	"`2d20r<3` - Roll two D20s and re-roll any rolls of 3 or below.\n" +
+	"`2d20r<3` - Roll two D20s and re-roll any rolls of _3 or less_.\n" +
 	"`d20ro1` - Roll a D20 and re-roll it only once if the result was a 1.\n" +
 	"`8d6s` - Roll 8 D6s and sort the results.\n" +
 	"`3d6 # Fire damage` - Add a label to a roll after a `#` or `\\`.",
@@ -35,7 +34,10 @@ func makeEmbedHelp() *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
 		Title:       "Dice Golem Help",
 		Description: "I roll dice! I respond to commands like `/roll d20` and @mentions.\n</info:581956766246633475> provides more bot information.",
-		Author:      &discordgo.MessageEmbedAuthor{},
+		// Author: &discordgo.MessageEmbedAuthor{
+		// 	Name:    "Dice Golem",
+		// 	IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
+		// },
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:  "Examples",
@@ -51,7 +53,7 @@ func makeEmbedHelp() *discordgo.MessageEmbed {
 			},
 			{
 				Name:  "Rerolling",
-				Value: "Reroll dice with the `r` modifier. Reroll dice only once with `ro`. Reroll by comparisons (`r<3`) or for individual possible results (`r2`). Multiple reroll modifiers can be specified.",
+				Value: "Reroll dice with the `r` modifier. Reroll dice only once with `ro`. Reroll by comparisons (`r<3`) or for individual possible results (`r2`). Multiple reroll modifiers can be specified (`r2r4`).",
 			},
 			// {
 			// 	Name:  "Critical Successes/Failures",
@@ -63,11 +65,6 @@ func makeEmbedHelp() *discordgo.MessageEmbed {
 			},
 		},
 	}
-}
-
-// SendHelp sends help text to the specified channel.
-func SendHelp(ctx context.Context, s *discordgo.Session, cid string) {
-	s.ChannelMessageSendEmbed(cid, makeEmbedHelp())
 }
 
 // InfoEmbedFields are fields embedded in info command embeds.
@@ -89,7 +86,7 @@ var InfoEmbedFields = []*discordgo.MessageEmbedField{
 	},
 	{
 		Name:  "Links",
-		Value: fmt.Sprintf("[Support Server](%s) | [Info (Top.gg)](%s)\n[Privacy Policy](%s) | [Terms of Service](%s)", support, vote, privacy, terms),
+		Value: fmt.Sprintf("[Support Server](%s) | [Info (Top.gg)](%s)", support, vote),
 	},
 }
 
@@ -104,8 +101,4 @@ func makeEmbedInfo() *discordgo.MessageEmbed {
 		Author: &discordgo.MessageEmbedAuthor{},
 		Fields: InfoEmbedFields,
 	}
-}
-
-func SendInfo(ctx context.Context, s *discordgo.Session, cid string) {
-	s.ChannelMessageSendEmbed(cid, makeEmbedInfo())
 }

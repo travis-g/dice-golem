@@ -25,18 +25,18 @@ func SendMessage(session *discordgo.Session, channelID string, data *discordgo.M
 	return session.ChannelMessageSendComplex(channelID, data)
 }
 
-// IsDirectMessage returns whether the Message event was spawned by a DM.
-// Messages only have the ID of the associated channel, not a pointer.
+// IsDirectMessage returns whether the Message event was spawned by a DM. DMs
+// only have the ID of the associated channel, and no associated guild Member.
 func IsDirectMessage(m *discordgo.Message) bool {
-	dm := (m.GuildID == "" || m.Member == nil)
+	test := (m.GuildID == "" || m.Member == nil)
 	logger.Debug("direct message check",
-		zap.Bool("dm", dm),
+		zap.Bool("dm", test),
 		zap.Bool("member", m.Member != nil),
 		zap.Bool("user", m.Author != nil),
 		zap.String("guild", m.GuildID),
 		zap.String("channel", m.ChannelID),
 	)
-	return dm
+	return test
 }
 
 func newMessageSendFromInteractionResponse(i *discordgo.InteractionResponse) *discordgo.MessageSend {
@@ -48,21 +48,49 @@ func newMessageSendFromInteractionResponse(i *discordgo.InteractionResponse) *di
 	}
 }
 
+func newEphemeralResponse(content string) *discordgo.InteractionResponse {
+	return &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Flags:   discordgo.MessageFlagsEphemeral,
+			Content: content,
+		},
+	}
+}
+
+func newChoicesResponse(choices []*discordgo.ApplicationCommandOptionChoice) *discordgo.InteractionResponse {
+	return &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices,
+		},
+	}
+}
+
+// HACK: fix this so that it doesn't hold on to interaction pointers.
+func deleteInteractionResponse(s *discordgo.Session, i *discordgo.Interaction, t time.Duration) {
+	time.Sleep(t)
+	err := s.InteractionResponseDelete(i)
+	if err != nil {
+		logger.Warn("cleanup error", zap.Error(err))
+	}
+}
+
 // trackRoll persists count information after a successful roll is made.
 func trackRollFromContext(ctx context.Context) {
-	defer recover()
-	s, i, m := FromContext(ctx)
-	if s == nil || (i == nil && m == nil) {
-		panic(errors.New("context data missing"))
-	}
-
-	logger.Debug("tracking roll")
-	metrics.IncrCounter([]string{"rolls"}, 1)
-
 	// if no Redis cache, skip
 	if DiceGolem.Redis == nil {
 		return
 	}
+
+	defer recover()
+	s, i, m := FromContext(ctx)
+	if s == nil || (i == nil && m == nil) {
+		panic("context data missing")
+	}
+
+	logger.Debug("tracking roll")
+	metrics.IncrCounter([]string{"rolls"}, 1)
 
 	var (
 		uid string // user ID
@@ -89,14 +117,14 @@ func trackRollFromContext(ctx context.Context) {
 
 	defer metrics.MeasureSince([]string{"redis", "track_roll"}, time.Now())
 	_, err := DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
-		pipe.Incr(fmt.Sprintf("rolls:total"))
+		pipe.Incr("rolls:total")
 		pipe.Incr(fmt.Sprintf("rolls:user:%s:total", uid))
-		pipe.SAdd(fmt.Sprintf("rolls:users"), uid)
-		pipe.SAdd(fmt.Sprintf("rolls:channels"), cid)
+		pipe.SAdd("rolls:users", uid)
+		pipe.SAdd("rolls:channels", cid)
 		pipe.Incr(fmt.Sprintf("rolls:guild:%s:chan:%s", gid, cid))
 		if gid != "" {
 			pipe.Incr(fmt.Sprintf("rolls:guild:%s", gid))
-			pipe.SAdd(fmt.Sprintf("rolls:guilds"), gid)
+			pipe.SAdd("rolls:guilds", gid)
 		}
 		return nil
 	})
@@ -162,8 +190,7 @@ func guildCount(b *Bot) (guilds int, sharding []int, err error) {
 	return
 }
 
-// MarkdownString converts a dice group into a Markdown-compatible display
-// format.
+// MarkdownString converts a dice group into a Markdown-compatible text format.
 func MarkdownString(ctx context.Context, group *dice.RollerGroup) string {
 	var b strings.Builder
 	write := b.WriteString
@@ -187,8 +214,8 @@ func MarkdownString(ctx context.Context, group *dice.RollerGroup) string {
 	return s
 }
 
-// MarkdownDetails returns text representations of an array of dice groups
-// in Discord-flavored Markdown format.
+// MarkdownDetails returns text representations of an array of dice
+// groups as Discord-flavored Markdown format.
 func MarkdownDetails(ctx context.Context, groups []*dice.RollerGroup) string {
 	logger.Debug("markdown string", zap.Any("group", groups))
 	var b strings.Builder
@@ -254,22 +281,25 @@ func SelfInUsers(users []*discordgo.User) (found bool) {
 	return
 }
 
-func Mention(u *discordgo.User) string {
+// MentionUser returns a Discord mention string for a User.
+func MentionUser(u *discordgo.User) string {
 	return "<@" + u.ID + ">"
 }
 
-// String is a helper to return a pointer to the supplied string.
-func String(v string) *string {
-	return &v
+func MentionCommand(paths ...string) string {
+	var b strings.Builder
+	write := b.WriteString
+	for _, path := range paths {
+		write(path)
+		write(" ")
+	}
+	path := b.String()
+	path = path[:b.Len()-1] // truncate trailing space
+	return fmt.Sprintf("</%s:%s>", path, DiceGolem.SelfID)
 }
 
-// Bool is a helper to return a pointer to the supplied boolean.
-func Bool(v bool) *bool {
-	return &v
-}
-
-// Int64 is a helper to return a pointer to the supplied int64.
-func Int64(v int64) *int64 {
+// Ptr returns a pointer to the passed value.
+func Ptr[T any](v T) *T {
 	return &v
 }
 
@@ -283,18 +313,24 @@ func contains(haystack []string, needle string) (found bool) {
 	return
 }
 
-// distinct returns the distinct strings of a slice as a new slice. Blanks are
-// omitted.
-func distinct(in []string) (out []string) {
-	uniques := make(map[string]bool)
-	for _, item := range in {
-		if item == "" {
-			continue
-		}
-		if _, found := uniques[item]; !found {
-			uniques[item] = true
-			out = append(out, item)
-		}
+// trunc returns a slice of the first num items of an array if array's length is
+// longer then num. If array is shorter than num, the original array is
+// returned.
+func trunc[T any](arr []T, num int) []T {
+	if num < 0 {
+		panic("cannot truncate to negative length")
 	}
-	return
+	if len(arr) > num {
+		return arr[:num]
+	}
+	return arr
+}
+
+// truncString truncates a string to a length if the string's length is over
+// num characters.
+func truncString(s string, num int) string {
+	if len(s) > num {
+		return s[:num]
+	}
+	return s
 }

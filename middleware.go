@@ -22,7 +22,7 @@ func excessiveDiceMiddleware(next HandlerFunc) HandlerFunc {
 // excessiveDice predicts whether the context's dice expression would exceed
 // the maximum allowed number of dice per roll.
 func excessiveDice(ctx context.Context) bool {
-	roll, ok := ctx.Value(KeyRollInput).(*RollInput)
+	roll, ok := ctx.Value(KeyRollInput).(*NamedRollInput)
 	if !ok {
 		panic("dice expression missing from context")
 	}

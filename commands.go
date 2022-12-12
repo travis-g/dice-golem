@@ -61,7 +61,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:         "private",
 		Description:  "Make a roll to have DMed to you",
 		Options:      MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
-		DMPermission: Bool(false), // already private if in DMs.
+		DMPermission: Ptr(false), // already private if in DMs.
 		// NameLocalizations: &map[discordgo.Locale]string{
 		// 	discordgo.SpanishES: "privado",
 		// },
@@ -76,6 +76,11 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 			{
 				Name:        "recent",
 				Description: "Clear your recent roll history",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
+			{
+				Name:        "expressions",
+				Description: "Clear your saved roll exressions",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 		},
@@ -147,56 +152,6 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		// },
 	},
 	{
-		Name:        "invite",
-		Description: "Invite the bot to another server",
-	},
-	// TODO: break into commandsGlobalMessage[]
-	{
-		Name: "Roll Message",
-		Type: discordgo.MessageApplicationCommand,
-		// NameLocalizations: &map[discordgo.Locale]string{
-		// 	discordgo.SpanishES: "Tirar mensaje",
-		// },
-	},
-}
-
-// Commands to enable in the bot's home server(s).
-var CommandsHomeChat = []*discordgo.ApplicationCommand{
-	{
-		Name:                     "state",
-		Description:              "Show internal bot state information",
-		DefaultMemberPermissions: Int64(0),
-		DefaultPermission:        Bool(false),
-	},
-	{
-		Name:                     "stats",
-		Description:              "Show bot statistics",
-		DefaultMemberPermissions: Int64(0),
-		DefaultPermission:        Bool(false),
-	},
-	{
-		Name:                     "ping",
-		Description:              "Check response times",
-		DefaultMemberPermissions: Int64(0),
-		DefaultPermission:        Bool(false),
-	},
-	{
-		Name:        "clear",
-		Description: "Data removal commands",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Name:        "recent",
-				Description: "Clear your recent roll history",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-			},
-			{
-				Name:        "expressions",
-				Description: "Clear your saved roll exressions",
-				Type:        discordgo.ApplicationCommandOptionSubCommand,
-			},
-		},
-	},
-	{
 		Name:        "expressions",
 		Description: "Commands for managing saved expressions",
 		Options: []*discordgo.ApplicationCommandOption{
@@ -225,29 +180,66 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 			// 	Description: "List your saved expressions",
 			// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
 			// },
-			// {
-			// 	Name:        "import",
-			// 	Description: "Import a set of saved rolls",
-			// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-			// },
-			// {
-			// 	Name:        "export",
-			// 	Description: "Export your saved rolls",
-			// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-			// },
+			{
+				Name:        "edit",
+				Description: "Edit your saved expressions (experimental)",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
+			{
+				Name:        "export",
+				Description: "Export your saved expressions to a CSV",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
 		},
 	},
+	{
+		Name: "Roll Message",
+		Type: discordgo.MessageApplicationCommand,
+		// NameLocalizations: &map[discordgo.Locale]string{
+		// 	discordgo.SpanishES: "Tirar mensaje",
+		// },
+	},
+	{
+		Name: "Save Expression",
+		Type: discordgo.MessageApplicationCommand,
+		// NameLocalizations: &map[discordgo.Locale]string{
+		// 	discordgo.SpanishES: "Guardar tira",
+		// },
+	},
+}
+
+// Commands to enable in the bot's home server(s).
+var CommandsHomeChat = []*discordgo.ApplicationCommand{
+	{
+		Name:                     "state",
+		Description:              "Show internal bot state information",
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
+	},
+	{
+		Name:                     "stats",
+		Description:              "Show bot statistics",
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
+	},
+	{
+		Name:                     "ping",
+		Description:              "Check response times",
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
+	},
+	// {
+	// 	Name:        "clear",
+	// 	Description: "Data removal commands",
+	// 	Options: []*discordgo.ApplicationCommandOption{
+	// 		{
+	// 			Name:        "expressions",
+	// 			Description: "Clear your saved roll exressions",
+	// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
+	// 		},
+	// 	},
+	// },
 	{
 		Name:        "debug",
 		Description: "The debug interaction handler",
 	},
-	// {
-	// 	Name: "Save Roll",
-	// 	Type: discordgo.MessageApplicationCommand,
-	// 	// NameLocalizations: &map[discordgo.Locale]string{
-	// 	// 	discordgo.SpanishES: "Guardar tira",
-	// 	// },
-	// },
 }
 
 // Option sets for commands.
@@ -312,6 +304,19 @@ var (
 		}
 		return nil
 	}
+	getModalTextInputComponents = func(modal discordgo.ModalSubmitInteractionData) map[string]interface{} {
+		data := make(map[string]interface{})
+		for _, irow := range modal.Components {
+			row := irow.(*discordgo.ActionsRow)
+			for _, ifield := range row.Components {
+				field, ok := ifield.(*discordgo.TextInput)
+				if ok {
+					data[field.CustomID] = field.Value
+				}
+			}
+		}
+		return data
+	}
 )
 
 // get focused option and path in the command tree
@@ -332,4 +337,17 @@ func getFocusedOption(data discordgo.ApplicationCommandInteractionData) (option 
 		}
 	}
 	return nil, param.String()
+}
+
+func getApplicationCommandPaths(data discordgo.ApplicationCommandInteractionData) []string {
+	path := []string{data.Name}
+	for _, opt := range data.Options {
+		if opt.Type == discordgo.ApplicationCommandOptionSubCommandGroup || opt.Type == discordgo.ApplicationCommandOptionSubCommand {
+			path = append(path, opt.Name)
+			if opt.Type == discordgo.ApplicationCommandOptionSubCommandGroup {
+				path = append(path, opt.Options[0].Name)
+			}
+		}
+	}
+	return path
 }

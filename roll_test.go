@@ -9,12 +9,12 @@ func TestNewRollInputFromString(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		wantData *RollInput
+		wantData *NamedRollInput
 	}{
 		{
 			name:  "full",
 			input: "3d6 # swing",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 				Label:      "swing",
 			},
@@ -22,12 +22,12 @@ func TestNewRollInputFromString(t *testing.T) {
 		{
 			name:     "empty",
 			input:    "",
-			wantData: &RollInput{},
+			wantData: &NamedRollInput{},
 		},
 		{
 			name:  "roll only",
 			input: "3d6",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 				Label:      "",
 			},
@@ -35,7 +35,7 @@ func TestNewRollInputFromString(t *testing.T) {
 		{
 			name:  "roll, blank comment",
 			input: "3d6 # ",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 				Label:      "",
 			},
@@ -43,7 +43,7 @@ func TestNewRollInputFromString(t *testing.T) {
 		{
 			name:  "weird spacings",
 			input: " 3d6  + 4   ",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6  + 4",
 				Label:      "",
 			},
@@ -51,22 +51,22 @@ func TestNewRollInputFromString(t *testing.T) {
 		{
 			name:     "comment only",
 			input:    "\\ comment",
-			wantData: &RollInput{},
+			wantData: &NamedRollInput{},
 		},
 		{
 			name:     "comment only; weird spaces",
 			input:    " #  comment ",
-			wantData: &RollInput{},
+			wantData: &NamedRollInput{},
 		},
 		{
 			name:     "other comment only; weird spaces",
 			input:    " |  comment ",
-			wantData: &RollInput{},
+			wantData: &NamedRollInput{},
 		},
 		// {
 		// 	name:  "leading comment",
 		// 	input: "Arcana: d20+2",
-		// 	wantData: &RollInput{
+		// 	wantData: &NamedRollInput{
 		// 		Expression: "d20+2",
 		// 		Label:      "Arcana",
 		// 	},
@@ -74,7 +74,7 @@ func TestNewRollInputFromString(t *testing.T) {
 		// {
 		// 	name:  "doubled comment",
 		// 	input: "Ignored: d20+2 # check",
-		// 	wantData: &RollInput{
+		// 	wantData: &NamedRollInput{
 		// 		Expression: "d20+2",
 		// 		Label:      "check",
 		// 	},
@@ -82,58 +82,58 @@ func TestNewRollInputFromString(t *testing.T) {
 		{
 			name:  "roll response",
 			input: "`3d6`: `(5+1+4)` = **10**",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 			},
 		},
 		{
 			name:  "roll response",
-			input: "`3d6` *fire damage*: `(5+1+4)` = **10**",
-			wantData: &RollInput{
+			input: "`3d6` _fire damage_: `(5+1+4)` = **10**",
+			wantData: &NamedRollInput{
 				Expression: "3d6",
-				// Label:    "fire damage",
+				Label:      "fire damage",
 			},
 		},
 		{
 			name:  "roll response; bad",
-			input: "`3d6 *` *weird*: `(5+1+4)` = **10**",
-			wantData: &RollInput{
+			input: "`3d6 *` _weird_: `(5+1+4)` = **10**",
+			wantData: &NamedRollInput{
 				Expression: "3d6 *",
-				// Label:    "weird",
+				Label:      "weird",
 			},
 		},
 		{
 			name:  "formatted message",
 			input: "roll `3d6 +2` bludgeoning",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6 +2",
 			},
 		},
 		{
 			name:  "formatted message",
 			input: "`3d6 +2` damage `bogus`",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6 +2",
 			},
 		},
 		{
 			name:  "math",
 			input: "what's `3+5*8`",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3+5*8",
 			},
 		},
 		{
 			name:  "response",
 			input: "<!@12345654> rolled `3+5*8`: nonsense",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3+5*8",
 			},
 		},
 		{
 			name:  "serialized roll input",
 			input: "3d6|fire damage",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 				Label:      "fire damage",
 			},
@@ -141,21 +141,21 @@ func TestNewRollInputFromString(t *testing.T) {
 		{
 			name:  "old prefix",
 			input: "/roll 3d6",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 			},
 		},
 		{
 			name:  "empty label",
 			input: "3d6 # ",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 			},
 		},
 		{
 			name:  "label with mention",
 			input: "3d6 # @trav#1234 test",
-			wantData: &RollInput{
+			wantData: &NamedRollInput{
 				Expression: "3d6",
 				Label:      "@trav#1234 test",
 			},
@@ -163,7 +163,7 @@ func TestNewRollInputFromString(t *testing.T) {
 		// {
 		// 	name:     "formatted message; broken",
 		// 	input:    "roll `3d6 bludgeoning",
-		// 	wantData: &RollInput{},
+		// 	wantData: &NamedRollInput{},
 		// },
 	}
 	for _, tt := range tests {

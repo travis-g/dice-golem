@@ -41,7 +41,9 @@ type Config struct {
 
 	// Number of recent rolls to keep in history
 	MaxHistory int `env:"MAX_HISTORY,default=20"`
-	MaxRolls   int `env:"MAX_ROLLS,default=20"`
+
+	// Number of saved expressions per key
+	MaxExpressions int `env:"MAX_ROLLS,default=50"`
 
 	// Max dice allowed to be rolled per request
 	MaxDice int `env:"MAX_DICE,default=500"`

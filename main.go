@@ -18,6 +18,8 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/bwmarrin/discordgo"
+	"github.com/gocarina/gocsv"
+	"github.com/mitchellh/mapstructure"
 	"github.com/travis-g/dice"
 	"github.com/travis-g/dice/math"
 	"go.uber.org/zap"
@@ -43,16 +45,12 @@ const MaxResponseLength = 2000
 
 // Response templates for dice roll message responses.
 var (
-	ResponseTemplate      = "{{if .Name}}{{.Name}} rolled{{end}}{{if .Expression}} `{{.Expression}}`{{end}}{{if .Label}} *{{.Label}}*{{end}}: `{{.Rolled}}` = **{{.Result}}**"
-	ResponseErrorTemplate = "​{{.Name}}: {{.FriendlyError}}"
+	ResponseTemplate = "{{if .Name}}{{.Name}} rolled{{end}}{{if .Expression}} `{{.Expression}}`{{end}}{{if .Label}} _{{.Label}}_{{end}}: `{{.Rolled}}` = **{{.Result}}**"
 )
 
 var (
 	responseResultTemplateCompiled = template.Must(
 		template.New("result").Parse(ResponsePrefix + ResponseTemplate),
-	)
-	responseErrorTemplateCompiled = template.Must(
-		template.New("error").Parse(ResponsePrefix + ResponseErrorTemplate),
 	)
 )
 
@@ -191,19 +189,19 @@ func HandlePanic(s *discordgo.Session, i interface{}) {
 // InteractionRecover is a panic catcher for Interactions, which will send back
 // a friendly apology message to the user.
 func InteractionRecover(s *discordgo.Session, i *discordgo.Interaction) {
-	if r := recover(); r != nil {
-		logger.Error("recovering from panic",
-			zap.String("interaction", i.ID),
-			zap.String("panic", fmt.Sprintf("%v", r)))
+	r := recover()
+	// if nothing happened, skip
+	if r == nil {
+		return
 	}
-	if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Flags:   1 << 6, // ephemeral
-			Content: ErrUnexpectedError.Error(),
-		},
-	}); err != nil {
-		zap.Error(err)
+
+	logger.Error("recovering from panic",
+		zap.String("interaction", i.ID),
+		zap.String("panic", fmt.Sprintf("%v", r)))
+	if err := MeasureInteractionRespond(s.InteractionRespond, i,
+		newEphemeralResponse(ErrUnexpectedError.Error()),
+	); err != nil {
+		logger.Error("error sending response", zap.Error(err))
 	}
 }
 
@@ -240,42 +238,56 @@ func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
 
 // RouteInteractionCreate routes a Discord Interaction creation sent to the bot
 // to the appropriate sub-routers ands handlers based on type.
-func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	defer InteractionRecover(s, i.Interaction)
+func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreate) {
+	defer metrics.MeasureSince([]string{"core", "handle_interaction"}, time.Now())
+	// measure full time since MessageCreate on Discord's side:
+	if sent, err := discordgo.SnowflakeTimestamp(ic.ID); err == nil {
+		defer metrics.MeasureSince([]string{"core", "round_trip"}, sent)
+	}
+	i := ic.Interaction
+	defer InteractionRecover(s, i)
 	go func() {
+		// log some metrics
+		if sent, err := discordgo.SnowflakeTimestamp(i.ID); err == nil {
+			metrics.MeasureSinceWithLabels([]string{"core", "gateway_latency"}, sent, []metrics.Label{
+				{Name: "shard", Value: strconv.Itoa(s.ShardID)},
+			})
+		}
 		metrics.IncrCounter([]string{"core", "interaction"}, 1)
 		metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
+		metrics.IncrCounterWithLabels([]string{"client", "by_locale"}, 1, []metrics.Label{
+			{Name: "locale", Value: string(i.Locale)},
+		})
 	}()
+
+	logger.Debug("interaction type", zap.String("type", i.Type.String()))
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	ctx = NewContext(ctx, s, i.Interaction, nil)
+	ctx = NewContext(ctx, s, i, nil)
 	ctx = context.WithValue(ctx, dice.CtxKeyMaxRolls, int(float64(DiceGolem.MaxDice)*1.2))
 
 	switch i.Type {
 	// CHAT_INPUT type
 	case discordgo.InteractionApplicationCommand:
+		data := i.ApplicationCommandData()
+		go metrics.IncrCounter(append([]string{"command"}, getApplicationCommandPaths(data)...), 1)
 		logger.Debug("interaction create",
-			zap.String("name", i.ApplicationCommandData().Name),
+			zap.String("name", data.Name),
 			zap.Int("shard", s.ShardID),
 			zap.Int("type", int(i.Type)),
-			zap.Any("data", i),
+			zap.Any("data", ic),
 		)
-		command := i.ApplicationCommandData().Name
+		command := data.Name
 		if handle, ok := handlers[command]; ok {
 			// TODO: cache the interaction token
 			// defer DiceGolem.Cache.Set(fmt.Sprintf("cache:interaction:%s:token", i.ID), i.Token, cache.DefaultExpiration)
 			handle(ctx)
 		} else {
 			// handler doesn't exist for command
-			if err := MeasureInteractionRespond(s.InteractionRespond, i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Flags:   1 << 6,
-					Content: ErrInvalidCommand.Error(),
-				},
-			}); err != nil {
-				zap.Error(err)
+			if err := MeasureInteractionRespond(s.InteractionRespond, i,
+				newEphemeralResponse(ErrInvalidCommand.Error())); err != nil {
+				logger.Error("error sending response", zap.Error(err))
 			}
 			return
 		}
@@ -287,7 +299,7 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 			zap.String("component", i.MessageComponentData().CustomID),
 			zap.Int("shard", s.ShardID),
 			zap.Int("type", int(i.Type)),
-			zap.Any("data", i),
+			zap.Any("data", ic),
 		)
 		id := i.MessageComponentData().CustomID
 		// if button was a macro button strip off the macro_ prefix and use the
@@ -297,32 +309,23 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 			_, response, _ := NewRollMessageResponseFromString(ctx, roll)
 			_, err := s.ChannelMessageSendComplex(i.ChannelID, response)
 			if err != nil {
-				MeasureInteractionRespond(s.InteractionRespond, i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Flags:   1 << 6,
-						Content: ErrSendMessagePermissions.Error(),
-					},
-				})
+				MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse(ErrSendMessagePermissions.Error()))
 			} else {
-				_ = MeasureInteractionRespond(s.InteractionRespond, i.Interaction, &discordgo.InteractionResponse{
+				// if we sent correctly, clear the pending button press
+				_ = MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseDeferredMessageUpdate,
 				})
-				// cacheRollExpression(s, i.Interaction, rollData.Expression)
+				// cacheRollExpression(s, i, rollData.Expression)
 			}
 		} else if handle, ok := handlers[id]; ok {
 			// if it was a generic action button, handle the press
 			handle(ctx)
 		} else {
 			// handler doesn't exist for sent command
-			if err := MeasureInteractionRespond(s.InteractionRespond, i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Flags:   1 << 6,
-					Content: ErrInvalidCommand.Error(),
-				},
-			}); err != nil {
-				zap.Error(err)
+			if err := MeasureInteractionRespond(s.InteractionRespond, i,
+				newEphemeralResponse(ErrInvalidCommand.Error()),
+			); err != nil {
+				logger.Error("error sending response", zap.Error(err))
 			}
 			return
 		}
@@ -338,15 +341,103 @@ func RouteInteractionCreate(s *discordgo.Session, i *discordgo.InteractionCreate
 			logger.Debug("calling suggester", zap.Any("name", param))
 			suggest(ctx)
 		} else {
-			panic(errors.New("unhandled autocomplete parameter: " + param))
+			panic("unhandled autocomplete parameter: " + param)
 		}
+
+	case discordgo.InteractionModalSubmit:
+		data := i.ModalSubmitData()
+		logger.Debug("modal in", zap.Any("data", data))
+
+		switch {
+		case data.CustomID == "modal_save":
+			data := getModalTextInputComponents(data)
+			roll := new(NamedRollInput)
+			mapstructure.Decode(data, roll)
+			logger.Debug("modal data", zap.Any("data", roll))
+			roll.Clean()
+			if err := roll.Validate(); err != nil {
+				MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Request invalid: "+err.Error()))
+				return
+			}
+			if err := SetNamedRoll(UserFromInteraction(i), i.GuildID, roll); err != nil {
+				logger.Error("error saving roll", zap.Error(err))
+				MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Something unexpected errored! Please try again later."))
+				return
+			}
+			if err := MeasureInteractionRespond(s.InteractionRespond, i,
+				newEphemeralResponse(fmt.Sprintf("Saved `%v`!", roll)),
+			); err != nil {
+				logger.Error("error sending message", zap.Error(err))
+			}
+		case data.CustomID == "modal_import":
+			data := getModalTextInputComponents(data)
+			// make sure there was data
+			csvStr, ok := data["csv"].(string)
+			if csvStr == "" || !ok {
+				MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("CSV data was empty! No changes will be made."))
+				return
+			}
+			// unmarshal CSV to list of rolls
+			csv := []byte(csvStr)
+			var rolls []*NamedRollInput
+			if err := gocsv.UnmarshalBytes(csv, &rolls); err != nil {
+				MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Error reading CSV: "+err.Error()))
+				return
+			}
+
+			logger.Debug("unmarshaled data", zap.Any("rolls", rolls))
+			if len(rolls) > DiceGolem.MaxExpressions {
+				MeasureInteractionRespond(s.InteractionRespond, i,
+					newEphemeralResponse(fmt.Sprintf("Data contained more than the maximum of %d expressions to save.", DiceGolem.MaxExpressions)))
+
+				return
+			}
+
+			for n, roll := range rolls {
+				roll.Clean()
+				if err := roll.Validate(); err != nil {
+					MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse(fmt.Sprintf("Error validating expression %d: %v", n+1, err)))
+					return
+				}
+				if ok, err := roll.okForAutocomplete(); !ok {
+					MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse(fmt.Sprintf("Cannot save expression %d: %v", n+1, err)))
+					return
+				}
+			}
+
+			// all the rolls validated as best as they can be; replace what's in there
+			key := fmt.Sprintf(KeyUserGlobalExpressionsFmt, UserFromInteraction(i).ID)
+			DiceGolem.Redis.Del(key)
+			for _, roll := range rolls {
+				SetNamedRoll(UserFromInteraction(i), i.GuildID, roll)
+			}
+			count := DiceGolem.Redis.HLen(key).Val()
+			MeasureInteractionRespond(s.InteractionRespond, i,
+				newEphemeralResponse(fmt.Sprintf("Expressions saved! Total expressions: %d", count)))
+			return
+
+		default:
+			MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Sorry! You submitted an unexpected modal. Please try again later."))
+		}
+		return
+
+	default:
+		panic("unhandled interaction type: " + i.Type.String())
 	}
 }
 
 func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	defer HandlePanic(s, m.Message)
-	go metrics.IncrCounter([]string{"core", "message_in"}, 1)
-	logger.Debug("message_in", zap.Any("message", m))
+	go func() {
+		if sent, err := discordgo.SnowflakeTimestamp(m.ID); err == nil {
+			metrics.MeasureSince([]string{"core", "gateway_latency"}, sent)
+		}
+		metrics.IncrCounter([]string{"core", "message_in"}, 1)
+		metrics.IncrCounterWithLabels([]string{"core", "message_in_by_shard"}, 1, []metrics.Label{
+			{Name: "shard", Value: strconv.Itoa(s.ShardID)},
+		})
+	}()
+	logger.Debug("message_in", zap.Int("shard", s.ShardID), zap.Any("message", m))
 	// no content means there's no roll text to process (or it's not meant for
 	// the bot to see at all)
 	if m.Content == "" {
@@ -392,21 +483,21 @@ func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// if roll was OK, cache it
 	if rollErr == nil && res != nil {
-		roll := (&RollInput{
+		roll := (&NamedRollInput{
 			Expression: res.Expression,
 			Label:      res.Label,
 		}).Serialize()
-		defer DiceGolem.Cache.SetWithTTL(fmt.Sprintf(CacheKeyMessageDataFormat, m.ID), roll, DiceGolem.CacheTTL)
+		defer DiceGolem.Cache.SetWithTTL(fmt.Sprintf(KeyMessageDataFmt, m.ID), roll, DiceGolem.CacheTTL)
 	}
 
 	// cache expression for response as well
 	resMessage, resErr := s.ChannelMessageSendComplex(m.ChannelID, message)
 	if res != nil && resErr == nil && rollErr == nil {
-		roll := (&RollInput{
+		roll := (&NamedRollInput{
 			Expression: res.Expression,
 			Label:      res.Label,
 		}).Serialize()
-		defer DiceGolem.Cache.SetWithTTL(fmt.Sprintf(CacheKeyMessageDataFormat, resMessage.ID), roll, DiceGolem.CacheTTL)
+		defer DiceGolem.Cache.SetWithTTL(fmt.Sprintf(KeyMessageDataFmt, resMessage.ID), roll, DiceGolem.CacheTTL)
 	}
 
 	// if roll had an error, schedule cleanup of the response
