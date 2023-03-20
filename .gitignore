@@ -1,6 +1,6 @@
 /dice-golem
 /.env
-/dist
+/dist/dice-golem
 /terraform
 
 # Binaries for programs and plugins

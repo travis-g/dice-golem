@@ -21,7 +21,7 @@ lint:
 .PHONY: build
 build: fmt test
 	@echo "--> Building!"
-	go build -ldflags="-s -w" -o dice-golem
+	go build -ldflags="-s -w" -buildvcs=false -o dice-golem
 
 .PHONY: prod
 prod:
@@ -30,14 +30,16 @@ prod:
 	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/dice-golem
 
 .PHONY: debug
-debug: build
-	@echo "--> Running in debug mode..."
+debug: dev
+.PHONY: dev
+dev: build
+	@echo "--> Running in dev/debug mode..."
 	GOLEM_DEBUG=true GOLEM_RECENT=4h ./dice-golem
 
 .PHONY: clean
 clean:
 	@echo "--> Cleaning..."
-	rm -rf dice-golem dice-golem.exe dist
+	rm -rf dice-golem dice-golem.exe dist/dice-golem
 
 .PHONY: redis
 redis:
@@ -47,14 +49,3 @@ redis:
 .PHONY: docs
 docs:
 	dot -Tsvg -Gfontname="sans-serif" -Nfontname="sans-serif" -Efontname="sans-serif" docs/architecture.dot >docs/architecture.svg
-
-.PHONY: docker-build
-docker-build:
-	@echo "--> Building container..."
-	docker build -t dice-golem:$$(git rev-parse --abbrev-ref HEAD` . -f Dockerfile)
-
-.PHONY: docker-run
-docker-run: docker-build
-	@echo "--> Running bot (Docker)..."
-	docker run --rm --env-file .env \
-		-t dice-golem:$$(git rev-parse --abbrev-ref HEAD)

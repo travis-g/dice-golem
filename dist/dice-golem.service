@@ -1,0 +1,30 @@
+[Unit]
+Description=Dice Golem
+After=network.target
+Requires=network.target
+
+[Service]
+WorkingDirectory=/opt/dice-golem
+PrivateUsers=true
+User=ec2-user
+Group=ec2-user
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# --- Exec commands (executed inside WorkingDirectory)
+ExecStart=/bin/sh -c "source /opt/dice-golem/.env; /usr/bin/screen -DmS dice-golem /opt/dice-golem/dice-golem"
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=golem
+
+Restart=always
+RestartSec=60
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target
