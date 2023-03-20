@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/sethvargo/go-envconfig"
@@ -37,7 +38,7 @@ type Config struct {
 	CacheTTL   time.Duration `env:"CACHE,default=30m"`
 	RecentTTL  time.Duration `env:"RECENT,default=168h"`
 	HistoryTTL time.Duration `env:"HISTORY,default=336h"`
-	DataTTL    time.Duration `env:"DATA,default=744h"`
+	DataTTL    time.Duration `env:"DATA,default=2232h"`
 
 	// Number of recent rolls to keep in history
 	MaxHistory int `env:"MAX_HISTORY,default=20"`
@@ -69,4 +70,24 @@ func NewBotConfig() *BotConfig {
 	}
 	// TODO: check for Validate() error
 	return &c
+}
+
+// deriveClusterShards returns an array of shard IDs to bundle as clusters based
+// on the provided cluster's index and a desired count of clusters.
+func deriveClusterShards(clusterIndex, totalClusters, numShards int) (shardIDs []int, err error) {
+	if (clusterIndex < 0) || (clusterIndex >= totalClusters) {
+		return nil, fmt.Errorf("invalid cluster index")
+	}
+	if numShards <= 0 {
+		return nil, fmt.Errorf("invalid number of shards")
+	}
+	if numShards%totalClusters != 0 {
+		return nil, fmt.Errorf("unbalanced clustering config")
+	}
+	for i := 0; i < numShards; i++ {
+		if i%totalClusters == clusterIndex {
+			shardIDs = append(shardIDs, i)
+		}
+	}
+	return
 }
