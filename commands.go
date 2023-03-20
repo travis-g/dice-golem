@@ -18,7 +18,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:        "roll",
 		Description: "Roll a dice expression",
-		Options:     MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed, rollOptionsSecret, rollOptionsPrivate),
+		Options:     MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed, rollOptionsSecret, rollOptionsPrivate),
 		// NameLocalizations: &map[discordgo.Locale]string{
 		// 	discordgo.SpanishES: "tirar",
 		// },
@@ -28,28 +28,28 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	},
 	{
 		Name:        "help",
-		Description: "Show help for using Dice Golem",
+		Description: "Show help for using Dice Golem.",
 		// NameLocalizations: &map[discordgo.Locale]string{
 		// 	discordgo.SpanishES: "ayuda",
 		// },
 		// DescriptionLocalizations: &map[discordgo.Locale]string{
-		// 	discordgo.SpanishES: "Mostrar ayuda para el uso de Dice Golem",
+		// 	discordgo.SpanishES: "Mostrar ayuda para el uso de Dice Golem.",
 		// },
 	},
 	{
 		Name:        "info",
-		Description: "Show bot information for Dice Golem",
+		Description: "Show bot information for Dice Golem.",
 		// NameLocalizations: &map[discordgo.Locale]string{
 		// 	discordgo.SpanishES: "información",
 		// },
 		// DescriptionLocalizations: &map[discordgo.Locale]string{
-		// 	discordgo.SpanishES: "Mostrar información sobre Dice Golem",
+		// 	discordgo.SpanishES: "Mostrar información sobre Dice Golem.",
 		// },
 	},
 	{
 		Name:        "secret",
 		Description: "Make an ephemeral roll that only you will see",
-		Options:     MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
+		Options:     MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
 		// NameLocalizations: &map[discordgo.Locale]string{
 		// 	discordgo.SpanishES: "secreto",
 		// },
@@ -60,7 +60,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:         "private",
 		Description:  "Make a roll to have DMed to you",
-		Options:      MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
+		Options:      MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
 		DMPermission: Ptr(false), // already private if in DMs.
 		// NameLocalizations: &map[discordgo.Locale]string{
 		// 	discordgo.SpanishES: "privado",
@@ -75,12 +75,12 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "recent",
-				Description: "Clear your recent roll history",
+				Description: "Clear your recent roll history.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 			{
 				Name:        "expressions",
-				Description: "Clear your saved roll exressions",
+				Description: "Clear your saved roll exressions.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 		},
@@ -89,8 +89,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		// },
 	},
 	{
-		Name:        "settings",
-		Description: "Configure settings and preferences",
+		Name:        "preferences",
+		Description: "Configure your preferences",
 		Type:        discordgo.ApplicationCommandType(discordgo.ApplicationCommandOptionSubCommand),
 		// NameLocalizations: &map[discordgo.Locale]string{
 		// 	discordgo.SpanishES: "ajustes",
@@ -99,34 +99,26 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 			{
 				Name:        "recent",
 				Description: "Suggestions based on your recent rolls",
-				Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{
-						Name:        "enable",
+						Type:        discordgo.ApplicationCommandOptionBoolean,
+						Name:        "enabled",
 						Description: "Enable suggestions based on your recent rolls",
-						Type:        discordgo.ApplicationCommandOptionSubCommand,
-					},
-					{
-						Name:        "disable",
-						Description: "Disable suggestions based on your recent rolls",
-						Type:        discordgo.ApplicationCommandOptionSubCommand,
+						Required:    true,
 					},
 				},
 			},
 			{
-				Name:        "detailed",
-				Description: "Default roll output preference",
-				Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+				Name:        "output",
+				Description: "Roll output preferences",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{
-						Name:        "enable",
-						Description: "Enable printing detailed roll output by default",
-						Type:        discordgo.ApplicationCommandOptionSubCommand,
-					},
-					{
-						Name:        "disable",
-						Description: "Disable printing detailed roll output by default",
-						Type:        discordgo.ApplicationCommandOptionSubCommand,
+						Type:        discordgo.ApplicationCommandOptionBoolean,
+						Name:        "detailed",
+						Description: "Prefer detailed roll output by default",
+						Required:    true,
 					},
 				},
 			},
@@ -159,13 +151,13 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 				Name:        "save",
 				Description: "Save an expression with an optional name and label",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options:     MakeApplicationCommandOptions(rollOptionsDefault, rollOptionsName),
+				Options:     MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsName),
 			},
 			{
 				Name:        "unsave",
 				Description: "Remove a saved expression",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
-				Options: MakeApplicationCommandOptions([]*discordgo.ApplicationCommandOption{
+				Options: MergeApplicationCommandOptions([]*discordgo.ApplicationCommandOption{
 					{
 						Type:         discordgo.ApplicationCommandOptionString,
 						Name:         "expression",
@@ -175,11 +167,6 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 					},
 				}),
 			},
-			// {
-			// 	Name:        "list",
-			// 	Description: "List your saved expressions",
-			// 	Type:        discordgo.ApplicationCommandOptionSubCommand,
-			// },
 			{
 				Name:        "edit",
 				Description: "Edit your saved expressions (experimental)",
@@ -187,10 +174,20 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 			},
 			{
 				Name:        "export",
-				Description: "Export your saved expressions to a CSV",
+				Description: "Export your saved expressions to a CSV.",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
+			{
+				Name:        "clear",
+				Description: "Clear your saved roll exressions.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 		},
+	},
+	{
+		Name:                     "ping",
+		Description:              "Check response times.",
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
 	},
 	{
 		Name: "Roll Message",
@@ -212,33 +209,26 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 var CommandsHomeChat = []*discordgo.ApplicationCommand{
 	{
 		Name:                     "state",
-		Description:              "Show internal bot state information",
+		Description:              "Show internal bot state information.",
 		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
 	},
 	{
 		Name:                     "stats",
-		Description:              "Show bot statistics",
+		Description:              "Show bot statistics.",
 		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
 	},
-	{
-		Name:                     "ping",
-		Description:              "Check response times",
-		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
-	},
-	// {
-	// 	Name:        "clear",
-	// 	Description: "Data removal commands",
-	// 	Options: []*discordgo.ApplicationCommandOption{
-	// 		{
-	// 			Name:        "expressions",
-	// 			Description: "Clear your saved roll exressions",
-	// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-	// 		},
-	// 	},
-	// },
 	{
 		Name:        "debug",
 		Description: "The debug interaction handler",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:         "channel",
+				Description:  "Selected channel",
+				Type:         discordgo.ApplicationCommandOptionChannel,
+				ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
+				Required:     true,
+			},
+		},
 	},
 }
 
@@ -286,7 +276,7 @@ var (
 		{
 			Type:         discordgo.ApplicationCommandOptionString,
 			Name:         "name",
-			Description:  "Name for the expression, like 'Fireball', or existing expression to update",
+			Description:  "Name for the expression, like 'Fireball'",
 			Autocomplete: true,
 		},
 	}

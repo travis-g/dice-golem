@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -16,14 +17,10 @@ import (
 // Bot is a state wrapper of sharded session management.
 type Bot struct {
 	*BotConfig
-	// DefaultSession is the first session created by the bot with Discord. Any
-	// DMs must be sent using DefaultSession, which should always be a pointer
-	// to Sessions[0].
-	DefaultSession *discordgo.Session
-	Sessions       []*discordgo.Session
-	Commands       BotCommands
-	Cache          *Cache
-	Redis          *redis.Client
+	Sessions []*discordgo.Session
+	Commands BotCommands
+	Redis    *redis.Client
+	User     *discordgo.User
 }
 
 var DiceGolem *Bot
@@ -34,12 +31,11 @@ func NewBotFromConfig(c *BotConfig) (b *Bot) {
 	}
 	b.Commands.Global = CommandsGlobalChat
 	b.Commands.Home = CommandsHomeChat
-	b.Cache = NewCache(b.CacheTTL, 5*time.Minute)
 	return b
 }
 
-// intent is the intent value the bot uses when identifying to Discord.
-const intent = discordgo.IntentsDirectMessages | discordgo.IntentsGuildMessages | discordgo.IntentGuilds
+// intent is the ORed bit intent value the bot uses when identifying to Discord.
+const intent = discordgo.IntentDirectMessages | discordgo.IntentGuildMessages | discordgo.IntentGuilds
 
 func (b *Bot) Setup() {
 	var err error
@@ -76,13 +72,12 @@ func (b *Bot) Setup() {
 	}
 
 	if b.RedisAddr != "" {
-		b.Redis = redis.NewClient(&redis.Options{Addr: b.RedisAddr, DB: 0})
-		_, err := b.Redis.Ping().Result()
+		logger.Info("connecting to redis", zap.String("address", b.RedisAddr))
 
-		if err != nil {
-			logger.Fatal("failed to connect to redis", zap.Error(err))
+		b.Redis = redis.NewClient(&redis.Options{Addr: b.RedisAddr, DB: 0})
+		if _, err := b.Redis.Ping().Result(); err != nil {
+			logger.Error("failed to connect to redis", zap.Error(err))
 		}
-		logger.Info("connected to redis", zap.String("address", b.RedisAddr))
 	}
 }
 
@@ -113,15 +108,29 @@ func (b *Bot) Open() error {
 		if err != nil {
 			return err
 		}
+		if !b.BotConfig.State {
+			s.StateEnabled = false
+		}
 		s.ShardCount = shards
 		s.ShardID = i
+
 		// set the intent
 		s.Identify.Intents = intent
-		s.LogLevel = discordgo.LogInformational
 
+		if b.Debug {
+			s.LogLevel = discordgo.LogDebug
+		} else {
+			s.LogLevel = discordgo.LogInformational
+		}
+
+		s.State.TrackChannels = false
+		s.State.TrackThreads = false
 		s.State.TrackEmojis = false
+		s.State.TrackMembers = false
 		s.State.TrackThreadMembers = false
+		s.State.TrackRoles = false
 		s.State.TrackVoice = false
+		s.State.TrackPresences = false
 
 		s.AddHandler(HandleReady)
 		s.AddHandler(HandleResume)
@@ -133,9 +142,6 @@ func (b *Bot) Open() error {
 
 		b.Sessions[i] = s
 	}
-
-	// use session 0 as our default/DM session
-	b.DefaultSession = b.Sessions[0]
 
 	// create a WaitGroup to ensure that we can open sessions concurrently but
 	// still wait until we've also got core bot info back from Discord. This
@@ -159,8 +165,8 @@ func (b *Bot) Open() error {
 	defer cancel()
 	wg.Add(1)
 	for {
-		if DiceGolem.DefaultSession.State.User != nil || ctx.Err() != nil {
-			logger.Info("user data", zap.Any("user", DiceGolem.DefaultSession.State.User))
+		if DiceGolem.Sessions[0].State.User != nil || ctx.Err() != nil {
+			logger.Info("user data", zap.Any("user", DiceGolem.Sessions[0].State.User))
 			wg.Done()
 			break
 		}
@@ -186,7 +192,7 @@ func openSession(i int, s *discordgo.Session) (err error) {
 // the default session.
 func (b *Bot) ConfigureCommands() error {
 	// check available global Commands
-	existingCommands, err := b.DefaultSession.ApplicationCommands(b.SelfID, "")
+	existingCommands, err := b.Sessions[0].ApplicationCommands(b.SelfID, "")
 	if err != nil {
 		logger.Error("error getting commands", zap.Error(err))
 	}
@@ -194,7 +200,7 @@ func (b *Bot) ConfigureCommands() error {
 
 	// upload desired commands in bulk
 	logger.Debug("bulk uploading commands")
-	commands, err := b.DefaultSession.ApplicationCommandBulkOverwrite(b.SelfID, "", b.Commands.Global)
+	commands, err := b.Sessions[0].ApplicationCommandBulkOverwrite(b.SelfID, "", b.Commands.Global)
 	if err != nil {
 		logger.Error("error overwriting commands", zap.Error(err))
 	}
@@ -202,7 +208,7 @@ func (b *Bot) ConfigureCommands() error {
 
 	// configure home server Interactions using the default session
 	for _, home := range b.Homes {
-		_, err := b.DefaultSession.ApplicationCommandBulkOverwrite(b.SelfID, home, b.Commands.Home)
+		_, err := b.Sessions[0].ApplicationCommandBulkOverwrite(b.SelfID, home, b.Commands.Home)
 		if err != nil {
 			logger.Error("error overwriting guild commands", zap.String("guild", home), zap.Error(err))
 		} else {
@@ -215,8 +221,8 @@ func (b *Bot) ConfigureCommands() error {
 // Close closes all open sessions.
 func (b *Bot) Close() {
 	for _, s := range b.Sessions {
-		err := s.Close()
-		if err != nil {
+		logger.Info(fmt.Sprintf("closing session %d", s.ShardID))
+		if err := s.Close(); err != nil {
 			logger.Error("error closing session", zap.Error(err))
 		}
 	}
@@ -236,7 +242,7 @@ func (b *Bot) IsOwner(user *discordgo.User) bool {
 // message channels.
 func (b *Bot) EmitNotificationMessage(m *discordgo.MessageSend) error {
 	for _, channel := range b.Channels {
-		if _, err := b.DefaultSession.ChannelMessageSendComplex(channel, m); err != nil {
+		if _, err := b.Sessions[0].ChannelMessageSendComplex(channel, m); err != nil {
 			logger.Error("error sending message", zap.String("channel", channel), zap.Error(err))
 		}
 	}

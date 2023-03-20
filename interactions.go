@@ -69,7 +69,7 @@ var (
 		"ping":    PingInteraction,
 		"clear":   ClearInteraction,
 
-		"settings": SettingsInteraction,
+		"preferences": PreferencesInteraction,
 
 		// home-server commands
 		"state": StateInteraction,
@@ -97,7 +97,7 @@ var (
 	}
 )
 
-func MakeApplicationCommandOptions(optionSets ...[]*discordgo.ApplicationCommandOption) []*discordgo.ApplicationCommandOption {
+func MergeApplicationCommandOptions(optionSets ...[]*discordgo.ApplicationCommandOption) []*discordgo.ApplicationCommandOption {
 	var newOpts = []*discordgo.ApplicationCommandOption{}
 	for _, optionSet := range optionSets {
 		newOpts = append(newOpts, optionSet...)
@@ -203,9 +203,9 @@ func RollInteractionCreatePrivate(ctx context.Context) {
 
 	// create a DM channel, but since we can't respond as an interaction across
 	// channels convert the response to a regular message
-	c, _ := DiceGolem.DefaultSession.UserChannelCreate(uid)
+	c, _ := s.UserChannelCreate(uid)
 	m := newMessageSendFromInteractionResponse(response)
-	_, err := DiceGolem.DefaultSession.ChannelMessageSendComplex(c.ID, m)
+	_, err := s.ChannelMessageSendComplex(c.ID, m)
 	if err != nil {
 		MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse(ErrDMError.Error()))
 		return
@@ -231,19 +231,7 @@ func RollMessageInteractionCreate(ctx context.Context) {
 	logger.Debug("interaction data", zap.Any("data", i.ApplicationCommandData()))
 
 	// the expression to roll
-	var input string
-	// check cache
-	key := fmt.Sprintf(KeyMessageDataFmt, targetMessage.ID)
-	cachedSerial, ok := DiceGolem.Cache.Get(key)
-	if ok {
-		input = cachedSerial.(string)
-	} else {
-		// if not in cache, try evaluating the message content
-		// TODO: fuzzy-extract an expression
-		logger.Debug("cache miss", zap.String("key", key))
-		// TODO: handle seprately if interaction was not pulled from cache
-		input = targetMessage.Content
-	}
+	input := targetMessage.Content
 
 	// TODO: clean up input/extract roll from between accents, etc.
 
@@ -276,19 +264,7 @@ func SaveRollInteractionCreate(ctx context.Context) {
 	logger.Debug("interaction data", zap.Any("data", i.ApplicationCommandData()))
 
 	// the expression to roll
-	var input string
-	// check cache
-	key := fmt.Sprintf(KeyMessageDataFmt, targetMessage.ID)
-	cachedSerial, ok := DiceGolem.Cache.Get(key)
-	if ok {
-		input = cachedSerial.(string)
-	} else {
-		// if not in cache, try evaluating the message content
-		// TODO: fuzzy-extract an expression
-		logger.Debug("cache miss", zap.String("key", key))
-		// TODO: handle seprately if interaction was not pulled from cache
-		input = targetMessage.Content
-	}
+	input := targetMessage.Content
 
 	seed := NewRollInputFromString(input)
 	modal := makeSaveExpressionModal(seed)
@@ -480,7 +456,7 @@ func NewRollMessageResponseFromString(ctx context.Context, content string) (*Res
 	}
 
 	var text strings.Builder
-	responseResultTemplateCompiled.Execute(&text, res)
+	executeResponseTemplate(&text, res)
 
 	message := &discordgo.MessageSend{
 		Content: text.String(),
@@ -516,7 +492,7 @@ func PingInteraction(ctx context.Context) {
 	done := time.Now()
 	up := done.Sub(start)
 
-	// GET message
+	// get message
 	var m *discordgo.Message
 	var err error
 	if m, err = s.InteractionResponseEdit(i, &discordgo.WebhookEdit{}); err != nil {
@@ -538,7 +514,7 @@ func PingInteraction(ctx context.Context) {
 				},
 				{
 					Name: "API",
-					Value: fmt.Sprintf("%s (%s, %s)",
+					Value: fmt.Sprintf("%s (%s ↑, %s ↓)",
 						avg.Round(time.Millisecond).String(),
 						up.Round(time.Millisecond).String(),
 						down.Round(time.Millisecond).String()),
@@ -551,8 +527,8 @@ func PingInteraction(ctx context.Context) {
 				},
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text:    DiceGolem.DefaultSession.State.User.Username,
-				IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
+				Text:    DiceGolem.Sessions[0].State.User.Username,
+				IconURL: DiceGolem.Sessions[0].State.User.AvatarURL("64"),
 			},
 		},
 	}
@@ -679,6 +655,11 @@ func ExpressionsInteraction(ctx context.Context) {
 			MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Something unexpected errored!"))
 			return
 		}
+	case "clear":
+		_ = ExpressionsClearInteraction(ctx, u)
+		if err := MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Cleared your saved expressions (if any).")); err != nil {
+			logger.Error("error sending response", zap.Error(err))
+		}
 	default:
 		MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Sorry! That subcommand does not have a handler yet."))
 	}
@@ -795,11 +776,7 @@ func ClearInteraction(ctx context.Context) {
 			logger.Error("error sending response", zap.Error(err))
 		}
 	case "expressions":
-		// delete all expressions
-		if DiceGolem.Redis != nil {
-			key := fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID)
-			DiceGolem.Redis.Del(key)
-		}
+		_ = ExpressionsClearInteraction(ctx, u)
 		if err := MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Cleared your saved expressions (if any).")); err != nil {
 			logger.Error("error sending response", zap.Error(err))
 		}
@@ -810,33 +787,37 @@ func ClearInteraction(ctx context.Context) {
 	}
 }
 
-func SettingsInteraction(ctx context.Context) {
+func PreferencesInteraction(ctx context.Context) {
 	s, i, _ := FromContext(ctx)
 	user := UserFromInteraction(i)
 	options := i.ApplicationCommandData().Options
 	switch options[0].Name {
 	case "recent":
-		options = options[0].Options
-		switch options[0].Name {
-		case "enable":
-			UnsetPreference(user, SettingNoRecent)
-		case "disable":
-			SetPreference(user, SettingNoRecent)
-			DiceGolem.Redis.Del(fmt.Sprintf(KeyUserRecentFmt, user.ID))
+		if option := getOptionByName(options, "enabled"); option != nil {
+			if option.BoolValue() {
+				// reset to default 'enabled' setting
+				UnsetPreference(user, SettingNoRecent)
+			} else {
+				SetPreference(user, SettingNoRecent)
+				DiceGolem.Redis.Del(fmt.Sprintf(KeyUserRecentFmt, user.ID))
+			}
 		}
-	case "detailed":
-		options = options[0].Options
-		switch options[0].Name {
-		case "enable":
-			SetPreference(user, SettingDetailed)
-		case "disable":
-			UnsetPreference(user, SettingDetailed)
+	case "output":
+		if option := getOptionByName(options, "detailed"); option != nil {
+			if option.BoolValue() {
+				// set default of 'True'
+				SetPreference(user, SettingDetailed)
+			} else {
+				UnsetPreference(user, SettingDetailed)
+			}
 		}
+	default:
+		panic(fmt.Sprintf("unhandled preference: %s", options[0].Name))
 	}
-	MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Updated your settings."))
+	MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Updated your preference."))
 }
 
-func MeasureInteractionRespond(fn func(*discordgo.Interaction, *discordgo.InteractionResponse) error, i *discordgo.Interaction, r *discordgo.InteractionResponse) error {
+func MeasureInteractionRespond(fn func(*discordgo.Interaction, *discordgo.InteractionResponse, ...discordgo.RequestOption) error, i *discordgo.Interaction, r *discordgo.InteractionResponse) error {
 	defer metrics.MeasureSince([]string{"interaction", "send"}, time.Now())
 	return fn(i, r)
 }
@@ -917,9 +898,24 @@ func isRollPublic(i *discordgo.Interaction) bool {
 func DebugInteraction(ctx context.Context) {
 	s, i, _ := FromContext(ctx)
 
-	if err := MeasureInteractionRespond(s.InteractionRespond, i, nil); err != nil {
-		logger.Error("debug error", zap.Error(err))
+	MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("@%s#%s", i.User.Username, i.User.Discriminator),
+			Flags:   discordgo.MessageFlagsEphemeral,
+		},
+	})
+}
+
+// ExpressionsClearInteraction drops a user's saved expressions from the backend
+// store, if they exit.
+func ExpressionsClearInteraction(_ context.Context, u *discordgo.User) error {
+	// TODO: check Del() return code (int => number of deleted keys)
+	if DiceGolem.Redis != nil {
+		key := fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID)
+		DiceGolem.Redis.Del(key)
 	}
+	return nil
 }
 
 func makeSaveExpressionModal(seed *NamedRollInput) *discordgo.InteractionResponse {

@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"text/template"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -43,17 +42,6 @@ var ResponsePrefix, _ = strconv.Unquote("\u200B")
 // MaxResponseLength Discord message length.
 const MaxResponseLength = 2000
 
-// Response templates for dice roll message responses.
-var (
-	ResponseTemplate = "{{if .Name}}{{.Name}} rolled{{end}}{{if .Expression}} `{{.Expression}}`{{end}}{{if .Label}} _{{.Label}}_{{end}}: `{{.Rolled}}` = **{{.Result}}**"
-)
-
-var (
-	responseResultTemplateCompiled = template.Must(
-		template.New("result").Parse(ResponsePrefix + ResponseTemplate),
-	)
-)
-
 var (
 	manyDice = regexp.MustCompile(`(?i)(?:^|\b(?P<num>\d{3,}))(d|f)`)
 )
@@ -61,6 +49,7 @@ var (
 // Discord library init
 func init() {
 	discordgo.APIVersion = "10"
+
 	// logging init
 	discordgo.Logger = func(msgL, caller int, format string, a ...interface{}) {
 		var f func(msg string, fields ...zapcore.Field)
@@ -103,8 +92,8 @@ func main() {
 			{
 				Description: fmt.Sprintf("Started %d shards!", len(DiceGolem.Sessions)),
 				Footer: &discordgo.MessageEmbedFooter{
-					Text:    DiceGolem.DefaultSession.State.User.Username,
-					IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
+					Text:    DiceGolem.Sessions[0].State.User.Username,
+					IconURL: DiceGolem.Sessions[0].State.User.AvatarURL("64"),
 				},
 			},
 		},
@@ -130,6 +119,7 @@ func main() {
 	if DiceGolem.StatsdAddr != "" {
 		go func() {
 			for range time.Tick(10 * time.Second) {
+				go metrics.IncrCounter([]string{"core", "healthy"}, 1)
 				emitStats(DiceGolem)
 			}
 		}()
@@ -208,7 +198,6 @@ func InteractionRecover(s *discordgo.Session, i *discordgo.Interaction) {
 // HandleReady handles a Discord READY event.
 func HandleReady(s *discordgo.Session, e *discordgo.Ready) {
 	logger.Info("ready received",
-		zap.String("id", s.State.User.ID),
 		zap.Int("shards", s.ShardCount),
 		zap.Int("shard", s.ShardID),
 	)
@@ -219,10 +208,21 @@ func HandleReady(s *discordgo.Session, e *discordgo.Ready) {
 // HandleResume handles a Discord RESUME event.
 func HandleResume(s *discordgo.Session, e *discordgo.Resumed) {
 	logger.Warn("resumed",
-		zap.String("id", s.State.User.ID),
 		zap.Int("shard", s.ShardID),
 	)
 	metrics.IncrCounter([]string{"core", "resume"}, 1)
+}
+
+func HandleConnect(s *discordgo.Session, e *discordgo.Connect) {
+	logger.Warn("connected",
+		zap.Int("shard", s.ShardID),
+	)
+}
+
+func HandleDisconnect(s *discordgo.Session, e *discordgo.Disconnect) {
+	logger.Warn("disconnected",
+		zap.Int("shard", s.ShardID),
+	)
 }
 
 func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
@@ -230,9 +230,15 @@ func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
 	logger.Debug("guild create",
 		zap.Int("shard", s.ShardID),
 		zap.String("id", e.ID))
+}
 
-	if HasSetting(e.Guild, SettingNoAutocomplete) {
-		// TODO: upload options without autocomplete
+func HandleGuildDelete(s *discordgo.Session, e *discordgo.GuildDelete) {
+	logger.Debug("guild delete",
+		zap.Int("shard", s.ShardID),
+		zap.String("id", e.ID),
+		zap.Bool("unavailable", e.Unavailable))
+	if !e.Unavailable {
+		defer metrics.IncrCounter([]string{"core", "guild_delete"}, 1)
 	}
 }
 
@@ -280,8 +286,6 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 		)
 		command := data.Name
 		if handle, ok := handlers[command]; ok {
-			// TODO: cache the interaction token
-			// defer DiceGolem.Cache.Set(fmt.Sprintf("cache:interaction:%s:token", i.ID), i.Token, cache.DefaultExpiration)
 			handle(ctx)
 		} else {
 			// handler doesn't exist for command
@@ -475,30 +479,14 @@ func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}()
 
 	ctx = NewContext(ctx, s, nil, m.Message)
-	res, message, rollErr := NewMessageResponseFromMessage(ctx, m.Message)
+	_, message, rollErr := NewMessageResponseFromMessage(ctx, m.Message)
 	// if nothing to send, short-circuit
 	if message == nil {
 		return
 	}
 
-	// if roll was OK, cache it
-	if rollErr == nil && res != nil {
-		roll := (&NamedRollInput{
-			Expression: res.Expression,
-			Label:      res.Label,
-		}).Serialize()
-		defer DiceGolem.Cache.SetWithTTL(fmt.Sprintf(KeyMessageDataFmt, m.ID), roll, DiceGolem.CacheTTL)
-	}
-
 	// cache expression for response as well
-	resMessage, resErr := s.ChannelMessageSendComplex(m.ChannelID, message)
-	if res != nil && resErr == nil && rollErr == nil {
-		roll := (&NamedRollInput{
-			Expression: res.Expression,
-			Label:      res.Label,
-		}).Serialize()
-		defer DiceGolem.Cache.SetWithTTL(fmt.Sprintf(KeyMessageDataFmt, resMessage.ID), roll, DiceGolem.CacheTTL)
-	}
+	resMessage, _ := s.ChannelMessageSendComplex(m.ChannelID, message)
 
 	// if roll had an error, schedule cleanup of the response
 	if rollErr != nil && resMessage != nil {

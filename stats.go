@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -86,11 +87,6 @@ func makeStateEmbed() []*discordgo.MessageEmbed {
 					Inline: true,
 				},
 				{
-					Name:   "Cache",
-					Value:  humanfmt.Sprintf("%d", len(DiceGolem.Cache.Items())),
-					Inline: true,
-				},
-				{
 					Name: "Memory",
 					Value: fmt.Sprintf("%s (%.2f%%)",
 						humanize.Bytes(memstats.Alloc), 100.0*float64(memstats.Alloc)/float64(sysmem.Available),
@@ -115,15 +111,21 @@ func makeStateEmbed() []*discordgo.MessageEmbed {
 // emitStats emits telemetry metrics. It will try to emit as
 // many metrics as possible.
 func emitStats(b *Bot) {
-	metrics.SetGauge([]string{"core", "heartbeat"}, float32(b.DefaultSession.HeartbeatLatency()/time.Millisecond))
-	metrics.SetGauge([]string{"core", "cache_size"}, float32(len(DiceGolem.Cache.Items())))
+	defer metrics.MeasureSince([]string{"core", "metrics"}, time.Now())
+	metrics.SetGauge([]string{"core", "heartbeat"}, float32(b.Sessions[0].HeartbeatLatency()/time.Millisecond))
 	guilds, _, err := guildCount(DiceGolem)
 	if err == nil {
 		metrics.SetGauge([]string{"guilds", "total"}, float32(guilds))
 	}
 
+	// redis cache metrics
+	if DiceGolem.Redis == nil {
+		return
+	}
+
 	unavailable := 0
 	for _, s := range DiceGolem.Sessions {
+		DiceGolem.Redis.HSet(KeyShardGuildCountFmt, strconv.Itoa(s.ShardID), strconv.Itoa(len(s.State.Guilds)))
 		for _, g := range s.State.Guilds {
 			if g.Unavailable {
 				unavailable += 1
@@ -131,11 +133,6 @@ func emitStats(b *Bot) {
 		}
 	}
 	metrics.SetGauge([]string{"core", "unavailable_guilds"}, float32(unavailable))
-
-	// redis cache metrics
-	if DiceGolem.Redis == nil {
-		return
-	}
 
 	var totalExpressions int64
 	expressionsKeys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyUserGlobalExpressionsFmt, "*")).Val()
