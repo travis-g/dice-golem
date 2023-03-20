@@ -802,23 +802,21 @@ func PreferencesInteraction(ctx context.Context) {
 	options := i.ApplicationCommandData().Options
 	switch options[0].Name {
 	case "recent":
-		if option := getOptionByName(options, "enabled"); option != nil {
-			if option.BoolValue() {
-				// reset to default 'enabled' setting
-				UnsetPreference(user, SettingNoRecent)
-			} else {
-				SetPreference(user, SettingNoRecent)
-				DiceGolem.Redis.Del(fmt.Sprintf(KeyUserRecentFmt, user.ID))
-			}
+		option := mustGetOptionByName(options, "enabled")
+		if option.BoolValue() {
+			// reset to default 'enabled' setting
+			UnsetPreference(user, SettingNoRecent)
+		} else {
+			SetPreference(user, SettingNoRecent)
+			DiceGolem.Redis.Del(fmt.Sprintf(KeyUserRecentFmt, user.ID))
 		}
 	case "output":
-		if option := getOptionByName(options, "detailed"); option != nil {
-			if option.BoolValue() {
-				// set default of 'True'
-				SetPreference(user, SettingDetailed)
-			} else {
-				UnsetPreference(user, SettingDetailed)
-			}
+		option := mustGetOptionByName(options, "detailed")
+		if option.BoolValue() {
+			// set default of 'True'
+			SetPreference(user, SettingDetailed)
+		} else {
+			UnsetPreference(user, SettingDetailed)
 		}
 	default:
 		panic(fmt.Sprintf("unhandled preference: %s", options[0].Name))

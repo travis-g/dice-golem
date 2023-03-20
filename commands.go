@@ -298,6 +298,14 @@ var (
 		}
 		return nil
 	}
+	// getOptionByName, but panics if the option is not found
+	mustGetOptionByName = func(opts []*discordgo.ApplicationCommandInteractionDataOption, name string) *discordgo.ApplicationCommandInteractionDataOption {
+		opt := getOptionByName(opts, name)
+		if opt == nil {
+			panic("nil option")
+		}
+		return opt
+	}
 	getModalTextInputComponents = func(modal discordgo.ModalSubmitInteractionData) map[string]interface{} {
 		data := make(map[string]interface{})
 		for _, irow := range modal.Components {
