@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -20,7 +19,10 @@ func commentFieldFunc(r rune) bool {
 	return r == '\\' || r == '#' || r == delim
 }
 
-var mentionRegexp = regexp.MustCompile(`<@.+?>`)
+var (
+	mentionRegexp        = regexp.MustCompile(`<@.+?>`)
+	multirollSplitRegexp = regexp.MustCompile(`[\n;]`)
+)
 
 // NewRollInputFromString returns a new RollInput based off an input string with
 // optional comment (i.e. label).
@@ -132,14 +134,12 @@ func EvaluateRollInputWithContext(ctx context.Context, rollInput *NamedRollInput
 // evaluateRoll executes the given roll string and emits metrics.
 func evaluateRoll(ctx context.Context, roll string) (res *math.ExpressionResult, err error) {
 	defer metrics.MeasureSince([]string{"roll", "evaluate"}, time.Now())
+	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
 	res, err = math.EvaluateExpression(ctx, roll)
 	return
 }
 
-// cacheRollInput caches the roll from an interaction if an interaction was
-// sent successfully.
-func cacheRollInput(s *discordgo.Session, i *discordgo.Interaction, roll *NamedRollInput) {
-	if responseID, err := GetInteractionResponse(s, i); err == nil {
-		DiceGolem.Cache.SetWithTTL(fmt.Sprintf(KeyMessageDataFmt, responseID), roll.Serialize(), DiceGolem.CacheTTL)
-	}
+func splitMultirollString(s string) []string {
+	return multirollSplitRegexp.Split(s, -1)
 }

@@ -174,3 +174,32 @@ func TestNewRollInputFromString(t *testing.T) {
 		})
 	}
 }
+
+func Test_splitMultirollString(t *testing.T) {
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name string
+		arg  string
+		want []string
+	}{
+		{
+			name: "basic",
+			arg:  "foo ; bar",
+			want: []string{"foo ", " bar"},
+		},
+		{
+			name: "single",
+			arg:  "foo",
+			want: []string{"foo"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := splitMultirollString(tt.arg); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("splitMultirollString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
