@@ -10,12 +10,11 @@ import (
 const (
 	// HACK: use UUID
 	owner   = "trav#2397"
-	info    = "A dice roller bot for standard RPG/TRPG dice notations. Dice rolls are made using a CSPRNG to ensure the results are completely random.\nIt responds to Slash commands even in DMs! Use </help:581956766246633475> for help and examples."
 	support = "https://discord.gg/XUkXda5"
 	invite  = `https://discord.com/api/oauth2/authorize?client_id=581956766246633475&permissions=274878195712&scope=bot%20applications.commands`
 	vote    = `https://top.gg/bot/581956766246633475`
-	privacy = `https://github.com/travis-g/dice-golem/blob/main/website/privacy.md`
-	terms   = `https://github.com/travis-g/dice-golem/blob/main/website/terms.md`
+	privacy = `https://dicegolem.io/privacy`
+	terms   = `https://dicegolem.io/terms`
 )
 
 var examples = strings.TrimSpace("" +
@@ -70,13 +69,13 @@ func makeEmbedHelp() *discordgo.MessageEmbed {
 // InfoEmbedFields are fields embedded in info command embeds.
 var InfoEmbedFields = []*discordgo.MessageEmbedField{
 	{
-		Name:   "Source Code",
-		Value:  "[github.com/travis-g/dice-golem](https://github.com/travis-g/dice-golem)",
+		Name:   "Website",
+		Value:  "[dicegolem.io](https://dicegolem.io)",
 		Inline: true,
 	},
 	{
-		Name:   "Dice Library",
-		Value:  "[github.com/travis-g/dice](https://github.com/travis-g/dice)",
+		Name:   "Source Code",
+		Value:  "[github.com/travis-g/dice-golem](https://github.com/travis-g/dice-golem)",
 		Inline: true,
 	},
 	{
@@ -86,17 +85,17 @@ var InfoEmbedFields = []*discordgo.MessageEmbedField{
 	},
 	{
 		Name:  "Links",
-		Value: fmt.Sprintf("[Support Server](%s) | [Info (Top.gg)](%s)", support, vote),
+		Value: fmt.Sprintf("[Privacy Policy](%s) | [Terms of Service](%s) | [Support Server](%s) | [Info (Top.gg)](%s)", privacy, terms, support, vote),
 	},
 }
 
 func makeEmbedInfo() *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
 		Title:       "Dice Golem Info",
-		Description: info,
+		Description: fmt.Sprintf("A simple, easy to use Discord bot for rolling RPG/TRPG dice notations. Dice rolls are made using a CSPRNG to ensure the results are completely random.\nDice Golem responds to Slash commands even in DMs! Use the %s command for help and examples.", MentionCommand("help")),
 		Footer: &discordgo.MessageEmbedFooter{
 			Text:    fmt.Sprintf("Built with ❤️ and 🎲 by %s", owner),
-			IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
+			IconURL: DiceGolem.Sessions[0].State.User.AvatarURL("64"),
 		},
 		Author: &discordgo.MessageEmbedAuthor{},
 		Fields: InfoEmbedFields,

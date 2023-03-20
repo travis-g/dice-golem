@@ -10,8 +10,9 @@ import (
 
 // Constant fmt string formats for settings keys.
 const (
-	SettingsKeyUserSettingsFormat  = "settings:user:%s"
-	SettingsKeyGuildSettingsFormat = "settings:guild:%s"
+	SettingsKeyUserSettingsFormat    = "settings:user:%s"
+	SettingsKeyGuildSettingsFormat   = "settings:guild:%s"
+	SettingsKeyChannelSettingsFormat = "settings:channel:%s"
 )
 
 // TODO: redo settings management with binary
@@ -21,6 +22,7 @@ const (
 	SettingNoRecent       SettingName = "norecent"
 	SettingDetailed       SettingName = "detailed"
 	SettingNoAutocomplete SettingName = "noautocomplete"
+	SettingSilent         SettingName = "silent"
 )
 
 func (s SettingName) String() string {

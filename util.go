@@ -18,8 +18,7 @@ import (
 	"gopkg.in/redis.v3"
 )
 
-// SendMessage sends message data to a channel using a session. Note that
-// DMs are sent and received through session 0.
+// SendMessage sends message data to a channel using a session.
 func SendMessage(session *discordgo.Session, channelID string, data *discordgo.MessageSend) (*discordgo.Message, error) {
 	defer metrics.MeasureSince([]string{"discord", "send_message"}, time.Now())
 	return session.ChannelMessageSendComplex(channelID, data)
@@ -138,23 +137,27 @@ func trackRollFromContext(ctx context.Context) {
 // ServerCount is a payload of Shards and the Guilds tracked by each of them to
 // upload to the Discord Bot List.
 type ServerCount struct {
-	// Shards is an slice of counts of Guilds per Shard.
-	Shards []int `json:"shards"`
+	// ServerCount is an slice of counts of Guilds per Shard.
+	ServerCount []int `json:"server_count"`
 }
 
 func postServerCount(b *Bot) error {
-	_, shardCounts, err := guildCount(b)
-	if err != nil {
+	svals, err := b.Redis.HVals(KeyShardGuildCountFmt).Result()
+	if err == nil {
 		return err
 	}
-	count := &ServerCount{
-		Shards: shardCounts,
+	shardCounts := make([]int, len(svals))
+	for i, sval := range svals {
+		shardCounts[i], _ = strconv.Atoi(sval)
 	}
-	jsonBytes, _ := json.Marshal(count)
+	data := &ServerCount{
+		ServerCount: shardCounts,
+	}
+	jsonBytes, _ := json.Marshal(data)
 	payload := bytes.NewReader(jsonBytes)
 
-	url := fmt.Sprintf("https://top.gg/api/bots/%s/stats", b.DefaultSession.State.User.ID)
-	logger.Debug("shard counts", zap.Any("data", count), zap.String("url", url))
+	url := fmt.Sprintf("https://top.gg/api/bots/%s/stats", b.SelfID)
+	logger.Debug("shard counts", zap.Any("data", data), zap.String("url", url))
 
 	req, _ := http.NewRequest("POST", url, payload)
 	req.Header.Add("Authorization", b.TopToken)
@@ -188,6 +191,10 @@ func guildCount(b *Bot) (guilds int, sharding []int, err error) {
 		sharding[i] = len(s.State.Guilds)
 	}
 	return
+}
+
+func ValidateChannelCross(ctx context.Context, cid string) (bool, error) {
+	return false, ErrUnexpectedError
 }
 
 // MarkdownString converts a dice group into a Markdown-compatible text format.
