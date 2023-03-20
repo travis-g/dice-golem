@@ -488,7 +488,7 @@ func PingInteraction(ctx context.Context) {
 	}); err != nil {
 		logger.Error("ping", zap.Error(err))
 	}
-	// measure time to ACK
+	// measure time to ACK write
 	done := time.Now()
 	up := done.Sub(start)
 
@@ -554,10 +554,10 @@ func InviteInteraction(ctx context.Context) {
 							Label: "Add to server",
 							Style: discordgo.LinkButton,
 							URL:   invite,
-							// Emoji: discordgo.ComponentEmoji{
-							// 	Name: "dice_golem",
-							// 	ID:   "741798570289660004",
-							// },
+							Emoji: discordgo.ComponentEmoji{
+								Name: "dice_golem",
+								ID:   "1031958619782127616",
+							},
 						},
 					},
 				},
@@ -565,6 +565,15 @@ func InviteInteraction(ctx context.Context) {
 		},
 	}); err != nil {
 		logger.Error("invite error", zap.Error(err))
+		if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Sorry, an invite link couldn't be sent. Check the bot's Discord profile for alternative links.",
+				Flags:   discordgo.MessageFlagsEphemeral,
+			},
+		}); err != nil {
+			logger.Error("invite error", zap.Error(err))
+		}
 	}
 }
 

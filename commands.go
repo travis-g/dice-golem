@@ -130,12 +130,12 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "dnd5e",
-				Description: "A dice button pad of common D&D 5e system dice rolls",
+				Description: "Common D&D 5e system dice rolls",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 			{
 				Name:        "fate",
-				Description: "A dice button pad of common Fate (and Fudge) system rolls",
+				Description: "Common Fate (and Fudge) system rolls",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 		},
@@ -188,6 +188,10 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:                     "ping",
 		Description:              "Check response times.",
 		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
+	},
+	{
+		Name:        "invite",
+		Description: "Request an invite for the bot.",
 	},
 	{
 		Name: "Roll Message",
