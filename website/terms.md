@@ -1,4 +1,10 @@
-# Terms of Service
+---
+title: Terms of Service
+description: Dice Golem's Terms of Service
+layout: default
+---
+
+# Dice Golem's Terms of Service
 
 Dice Golem's service is provided "as is" and with no warranties, either express or implied.
 
@@ -10,4 +16,6 @@ When using Dice Golem you must comply with all applicable laws, rules, and regul
 
 Discord users found to be in violation of these rules will be blacklisted from interacting with the bot using their Discord user ID.
 
-Dice Golem's [Privacy Policy](./privacy.md) discusses what information may be collected when using the bot and how it is used.
+Dice Golem's [Privacy Policy][privacy] discusses what information may be collected when using the bot and how it is used.
+
+[privacy]: https://dicegolem.io/privacy "Dice Golem's Privacy Policy"

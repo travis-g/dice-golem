@@ -1,0 +1,26 @@
+source: .
+destination: ./public
+includes_dir: _includes
+sass:
+  style: compact
+
+url: https://dicegolem.io
+title: Dice Golem
+description: A simple, easy-to-use dice roller for Discord with saved rolls, history, autocomplete, buttons and more!
+
+markdown: kramdown
+
+plugins:
+  - jekyll-get-json
+  - jekyll-sitemap
+
+exclude:
+  - Gemfile*
+  - Makefile
+  - CNAME
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
