@@ -103,7 +103,7 @@ func main() {
 	if DiceGolem.TopToken != "" {
 		logger.Info("dbl enabled")
 		go func() {
-			for range time.Tick(10 * time.Minute) {
+			for range time.Tick(1 * time.Hour) {
 				logger.Info("posting dbl server count")
 				postServerCount(DiceGolem)
 			}
