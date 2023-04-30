@@ -9,9 +9,9 @@ fmt:
 	gofmt -w $(GOFMT_FILES)
 
 .PHONY: test
-test: fmt
+test:
 	@echo "--> Testing..."
-	go test ./...
+	go test -cover ./...
 
 .PHONY: lint
 lint:
@@ -23,8 +23,8 @@ build: fmt test
 	@echo "--> Building!"
 	go build -ldflags="-s -w" -buildvcs=false -o dice-golem
 
-.PHONY: prod
-prod:
+.PHONY: dist
+dist:
 	@echo "--> Building Production bot..."
 	mkdir -p dist/
 	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/dice-golem
@@ -32,8 +32,9 @@ prod:
 .PHONY: debug
 debug: dev
 .PHONY: dev
-dev: build
+dev:
 	@echo "--> Running in dev/debug mode..."
+	go build -ldflags="-s -w" -buildvcs=false -o dice-golem
 	GOLEM_DEBUG=true GOLEM_RECENT=4h ./dice-golem
 
 .PHONY: clean
