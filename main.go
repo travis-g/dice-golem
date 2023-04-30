@@ -25,11 +25,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Default variable settings.
-const (
-	DefaultTimeout = time.Second * 3
-)
-
 // TODO: move into Bot
 var (
 	logger *zap.Logger
