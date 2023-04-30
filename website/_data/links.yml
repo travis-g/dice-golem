@@ -1,0 +1,34 @@
+- text: Add to Server
+  class: dicegolem
+  href: https://discord.com/oauth2/authorize?client_id=581956766246633475&permissions=274878171200&scope=applications.commands%20bot
+# - text: More Info
+#   class: default
+#   href: /info
+- text: Support Server
+  class: discord
+  href: https://discord.gg/vuE8zyc
+  img: /images/discord-mark-white.png
+  alt: Discord Logo
+- text: App Directory
+  class: discord
+  href: discord:///application-directory/581956766246633475
+  img: /images/discord-mark-white.png
+  alt: Discord Logo
+- text: Top.gg
+  class: top
+  href: https://top.gg/bot/581956766246633475
+  img: /images/topgg-mark-white.svg
+  alt: Top.gg Logo
+- text: Source Code
+  class: github
+  href: https://github.com/travis-g/dice-golem
+  img: /images/github-mark-white.svg
+  alt: GitHub Logo
+- text: Privacy Policy
+  class: document
+  href: "./privacy"
+  alt: Document symbol
+- text: Terms of Service
+  class: document
+  href: "./terms"
+  alt: Document symbol

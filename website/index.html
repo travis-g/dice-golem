@@ -1,0 +1,33 @@
+---
+layout: home
+---
+
+<img class="avatar" alt="Dice Golem Discord avatar" src="/images/dicegolem-avatar.png" rel="noopener noreferrer" />
+
+<h1>Dice Golem</h1>
+
+<p>{{ site.description }}</p>
+
+{% capture button_class %}{{ site.data.links[0].class }}{% endcapture %}
+{% capture button_text %}{{ site.data.links[0].text }}{% endcapture %}
+{% capture button_href %}{{ site.data.links[0].href }}{% endcapture %}
+{% include button.html class=button_class text=button_text href=button_href %}
+
+<br />
+<br />
+
+{% assign num_links = site.data.links.size %}
+{% assign links = site.data.links | slice: 1, num_links %}
+{% for link in links %}
+  {% capture button_class %}{{ link.class }}{% endcapture %}
+  {% capture button_text %}{{ link.text }}{% endcapture %}
+  {% capture button_href %}{{ link.href }}{% endcapture %}
+  {% if link.img %}{% capture button_img %}{{ link.img }}{% endcapture %}{% else %}{% capture button_img %}{% endcapture %}{% endif %}
+  {% capture button_alt %}{{ link.alt }}{% endcapture %}
+  {% include button.html class=button_class text=button_text href=button_href img=button_img alt=button_alt %}
+  <br />
+{% endfor %}
+
+<hr />
+
+{% include attributions.html %}

@@ -1,0 +1,3 @@
+<a class="button button--link button--{{ include.class }}" href="{{ include.href }}" target="_blank" rel="noopener">
+  {% if include.img and include.img != "" %}<img class="button__icon" src="{{ include.img }}" alt="{{ include.alt }}">{% endif %}<span>{{ include.text }}</span>
+</a>
