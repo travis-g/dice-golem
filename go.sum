@@ -133,6 +133,10 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/travis-g/dice v0.0.0-20220917015700-6f61ecb6e2fd h1:iUe8skO1otgcuRHsdRYE34KZ6M0nUAXJULOMosxuvMc=
 github.com/travis-g/dice v0.0.0-20220917015700-6f61ecb6e2fd/go.mod h1:/bw/LsNVYWIJpbLK/UaEPwQSNbh2ZiDPNjfwksKYDZg=
+github.com/travis-g/dice v0.0.0-20230430013751-31378cf3bd91 h1:8dRdM02+FwmuiHQn2wiKJ9x5+OPl3MIbZYcziK+5j2U=
+github.com/travis-g/dice v0.0.0-20230430013751-31378cf3bd91/go.mod h1:/bw/LsNVYWIJpbLK/UaEPwQSNbh2ZiDPNjfwksKYDZg=
+github.com/travis-g/dice v0.0.0-20230430020218-a009628d05e7 h1:Ve+IOAm8k93F+nY/QdrmwLfwwwIdqn94Agb0ALVs9I0=
+github.com/travis-g/dice v0.0.0-20230430020218-a009628d05e7/go.mod h1:/bw/LsNVYWIJpbLK/UaEPwQSNbh2ZiDPNjfwksKYDZg=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yusufpapurcu/wmi v1.2.2 h1:KBNDSne4vP5mbSWnJbO+51IMOXJB67QiYCSBrubbPRg=
