@@ -21,7 +21,7 @@ lint:
 .PHONY: build
 build: fmt test
 	@echo "--> Building!"
-	go build -ldflags="-s -w" -buildvcs=false -o dice-golem
+	go build -ldflags="-s -w" -o dice-golem
 
 .PHONY: dist
 dist:
@@ -34,7 +34,7 @@ debug: dev
 .PHONY: dev
 dev:
 	@echo "--> Running in dev/debug mode..."
-	go build -ldflags="-s -w" -buildvcs=false -o dice-golem
+	go build -ldflags="-s -w" -o dice-golem
 	GOLEM_DEBUG=true GOLEM_RECENT=4h ./dice-golem
 
 .PHONY: clean

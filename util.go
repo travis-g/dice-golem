@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,34 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/redis.v3"
 )
+
+// Revision is the build commit identifier for the version of Dice Golem
+var Revision string
+
+func init() {
+	Revision = func() string {
+		var revision string
+		var modified bool
+		if info, ok := debug.ReadBuildInfo(); ok {
+			for _, setting := range info.Settings {
+				switch setting.Key {
+				case "vcs.revision":
+					revision = setting.Value
+				case "vcs.modified":
+					modified = (setting.Value == "true")
+				}
+			}
+			var b strings.Builder
+			write := b.WriteString
+			write(truncString(revision, 7))
+			if modified {
+				write("+changes")
+			}
+			return b.String()
+		}
+		return "unknown"
+	}()
+}
 
 // SendMessage sends message data to a channel using a session.
 func SendMessage(session *discordgo.Session, channelID string, data *discordgo.MessageSend) (*discordgo.Message, error) {

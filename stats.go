@@ -101,8 +101,11 @@ func makeHealthEmbed() []*discordgo.MessageEmbed {
 				},
 				{
 					Name:  "Shards",
-					Value: humanfmt.Sprintf("`%v`", statesShards),
+					Value: fmt.Sprintf("`%v`", statesShards),
 				},
+			},
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: "Version " + Revision,
 			},
 		},
 	}
