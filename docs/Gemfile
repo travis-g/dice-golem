@@ -2,8 +2,10 @@ source "https://rubygems.org"
 
 gem "jekyll", "~> 3.7"
 
+gem "kramdown", ">= 2.3.1"
+gem "addressable", ">= 2.8.0"
+
 group :jekyll_plugins do
   gem "jekyll-get-json", "~> 1.0"
   gem "jekyll-sitemap", "~> 1.4"
 end
-
