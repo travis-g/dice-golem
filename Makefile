@@ -6,7 +6,7 @@ default: fmt test build
 .PHONY: fmt
 fmt:
 	@echo "--> Formatting source files..."
-	gofmt -w $(GOFMT_FILES)
+	gofmt -s -w $(GOFMT_FILES)
 
 .PHONY: test
 test:
