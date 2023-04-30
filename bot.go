@@ -103,6 +103,15 @@ func (b *Bot) Open() error {
 	logger.Info("gateway response", zap.Any("data", gr))
 	b.Sessions = make([]*discordgo.Session, shards)
 
+	// clear stale state cache
+	_, err = DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
+		keys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyStateShardGuildFmt, "*")).Val()
+		for _, key := range keys {
+			DiceGolem.Redis.Del(key)
+		}
+		return nil
+	})
+
 	for i := range b.Sessions {
 		s, err := discordgo.New("Bot " + b.APIToken)
 		if err != nil {
@@ -135,6 +144,7 @@ func (b *Bot) Open() error {
 		s.AddHandler(HandleReady)
 		s.AddHandler(HandleResume)
 		s.AddHandler(HandleGuildCreate)
+		s.AddHandler(HandleGuildDelete)
 		s.AddHandler(HandleRateLimit)
 		s.AddHandler(RouteInteractionCreate)
 		s.AddHandler(HandleMessageCreate)
@@ -165,8 +175,9 @@ func (b *Bot) Open() error {
 	defer cancel()
 	wg.Add(1)
 	for {
-		if DiceGolem.Sessions[0].State.User != nil || ctx.Err() != nil {
-			logger.Info("user data", zap.Any("user", DiceGolem.Sessions[0].State.User))
+		DiceGolem.User, err = DiceGolem.Sessions[0].User(DiceGolem.SelfID)
+		if err == nil || ctx.Err() != nil {
+			logger.Info("user data", zap.Any("user", DiceGolem.User))
 			wg.Done()
 			break
 		}

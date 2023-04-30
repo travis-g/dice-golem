@@ -70,11 +70,12 @@ var (
 		"clear":   ClearInteraction,
 
 		"preferences": PreferencesInteraction,
+		"settings":    SettingsInteraction,
 
 		// home-server commands
-		"state": StateInteraction,
-		"stats": StatsInteraction,
-		"debug": DebugInteraction,
+		"health": HealthInteraction,
+		"stats":  StatsInteraction,
+		"debug":  DebugInteraction,
 
 		// message commands
 		"Roll Message": RollMessageInteractionCreate,
@@ -139,6 +140,9 @@ func RollInteractionCreate(ctx context.Context) {
 		// defer cacheRollInput(s, i, roll)
 		defer CacheRoll(user, roll)
 	}
+
+	// TODO: check forwarding configuration
+
 	if err := MeasureInteractionRespond(s.InteractionRespond, i, response); err != nil {
 		logger.Error("roll interaction error", zap.Error(err))
 	}
@@ -358,7 +362,7 @@ func NewRollInteractionResponseFromStringWithContext(ctx context.Context, expres
 	if i.Member != nil {
 		// add user's name if roll is shared to a guild channel
 		if isRollPublic(i) {
-			message.Name = MentionUser(UserFromInteraction(i))
+			message.Name = UserFromInteraction(i).Mention()
 		}
 		// allow mentioning only the user that requested the roll even if others
 		// are @mentioned (ex. '/roll expression:"3d6" label:"vs @travis' AC"')
@@ -444,14 +448,14 @@ func NewRollMessageResponseFromString(ctx context.Context, content string) (*Res
 	// if in a guild @mention the user
 	if m != nil && m.Author != nil && m.GuildID != "" {
 		user = m.Author
-		res.Name = MentionUser(user)
+		res.Name = user.Mention()
 	} else if m != nil {
 		// if in a DM skip the user mention/res.Name
 		user = UserFromMessage(m)
 	} else if i != nil {
 		user = UserFromInteraction(i)
 		if i.GuildID != "" {
-			res.Name = MentionUser(user)
+			res.Name = user.Mention()
 		}
 	}
 
@@ -527,8 +531,8 @@ func PingInteraction(ctx context.Context) {
 				},
 			},
 			Footer: &discordgo.MessageEmbedFooter{
-				Text:    DiceGolem.Sessions[0].State.User.Username,
-				IconURL: DiceGolem.Sessions[0].State.User.AvatarURL("64"),
+				Text:    DiceGolem.User.Username,
+				IconURL: DiceGolem.User.AvatarURL("64"),
 			},
 		},
 	}
@@ -726,8 +730,8 @@ func ButtonsInteraction(ctx context.Context) {
 	}
 }
 
-// StateInteraction sends bot state information.
-func StateInteraction(ctx context.Context) {
+// HealthInteraction sends bot state information.
+func HealthInteraction(ctx context.Context) {
 	s, i, _ := FromContext(ctx)
 	logger.Debug("state handler called", zap.String("interaction", i.ID))
 
@@ -739,7 +743,8 @@ func StateInteraction(ctx context.Context) {
 		if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Embeds: makeStateEmbed(),
+				Flags:  discordgo.MessageFlags(1 << 12),
+				Embeds: makeHealthEmbed(),
 			},
 		}); err != nil {
 			logger.Error("error sending response", zap.Error(err))
@@ -822,6 +827,44 @@ func PreferencesInteraction(ctx context.Context) {
 		panic(fmt.Sprintf("unhandled preference: %s", options[0].Name))
 	}
 	MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Updated your preference."))
+}
+
+func SettingsInteraction(ctx context.Context) {
+	s, i, _ := FromContext(ctx)
+	options := i.ApplicationCommandData().Options
+	switch options[0].Name {
+	case "forward":
+		logger.Debug("updating forwarding settings")
+		option := mustGetOptionByName(options, "channel")
+		c := option.ChannelValue(s)
+		// if in the same guild (sanity check)
+		if c.GuildID == i.GuildID {
+			if c.ID == i.ChannelID {
+				// set to same channel (clear setting)
+				DiceGolem.Redis.Del(fmt.Sprintf("setting:%s:%s:%s", i.GuildID, i.ChannelID, SettingKeyForward))
+			} else {
+				SetSetting(i.GuildID, i.ChannelID, SettingKeyForward, c.ID)
+				if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Embeds: []*discordgo.MessageEmbed{
+							{
+								Color:       0x7493f3,
+								Description: fmt.Sprintf("Roll forwarding configured: <#%s> → %s", i.ChannelID, c.Mention()),
+							},
+						},
+					},
+				}); err != nil {
+					logger.Error("response error", zap.Error(err))
+				}
+			}
+		} else {
+			// unreachable
+			panic(ErrUnexpectedError)
+		}
+	default:
+		panic(fmt.Sprintf("unhandled setting: %s", options[0].Name))
+	}
 }
 
 func MeasureInteractionRespond(fn func(*discordgo.Interaction, *discordgo.InteractionResponse, ...discordgo.RequestOption) error, i *discordgo.Interaction, r *discordgo.InteractionResponse) error {

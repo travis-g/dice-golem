@@ -23,6 +23,8 @@ const (
 	SettingDetailed       SettingName = "detailed"
 	SettingNoAutocomplete SettingName = "noautocomplete"
 	SettingSilent         SettingName = "silent"
+
+	SettingKeyForward SettingName = "forward"
 )
 
 func (s SettingName) String() string {
@@ -45,4 +47,8 @@ func HasPreference(u *discordgo.User, s SettingName) bool {
 func HasSetting(g *discordgo.Guild, s SettingName) bool {
 	defer metrics.MeasureSince([]string{"redis", "sismember"}, time.Now())
 	return DiceGolem.Redis.SIsMember(fmt.Sprintf(SettingsKeyGuildSettingsFormat, g.ID), s.String()).Val()
+}
+
+func SetSetting(gid, cid string, s SettingName, value string) {
+	DiceGolem.Redis.Set(fmt.Sprintf("setting:guild:%s:chan:%s:%s", gid, cid, s), value, DiceGolem.DataTTL)
 }

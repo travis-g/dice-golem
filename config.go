@@ -17,7 +17,7 @@ type Config struct {
 	Shard      int           `env:"SHARD,default=-1"`
 	Count      int           `env:"COUNT,default=0"`
 	Status     string        `env:"STATUS,default=with fate!"`
-	State      bool          `env:"STATE,default=true"`
+	State      bool          `env:"STATE,default=false"`
 
 	// Owner(s) and the home server(s) where the bot should allow admin
 	// commands and experimental features.

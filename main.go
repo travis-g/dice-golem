@@ -79,8 +79,7 @@ func main() {
 		http.ListenAndServe(":6060", nil)
 	}()
 
-	err := DiceGolem.Open()
-	if err != nil {
+	if err := DiceGolem.Open(); err != nil {
 		logger.Fatal("error opening connections", zap.Error(err))
 	}
 	defer DiceGolem.Close()
@@ -92,8 +91,8 @@ func main() {
 			{
 				Description: fmt.Sprintf("Started %d shards!", len(DiceGolem.Sessions)),
 				Footer: &discordgo.MessageEmbedFooter{
-					Text:    DiceGolem.Sessions[0].State.User.Username,
-					IconURL: DiceGolem.Sessions[0].State.User.AvatarURL("64"),
+					Text:    DiceGolem.User.Username,
+					IconURL: DiceGolem.User.AvatarURL("64"),
 				},
 			},
 		},
@@ -107,9 +106,10 @@ func main() {
 
 	// if DBL token is provided, set up the background server count updater.
 	if DiceGolem.TopToken != "" {
-		logger.Debug("dbl enabled")
+		logger.Info("dbl enabled")
 		go func() {
 			for range time.Tick(10 * time.Minute) {
+				logger.Info("posting dbl server count")
 				postServerCount(DiceGolem)
 			}
 		}()
@@ -230,6 +230,7 @@ func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
 	logger.Debug("guild create",
 		zap.Int("shard", s.ShardID),
 		zap.String("id", e.ID))
+	DiceGolem.Redis.SAdd(fmt.Sprintf(KeyStateShardGuildFmt, strconv.Itoa(s.ShardID)), e.ID)
 }
 
 func HandleGuildDelete(s *discordgo.Session, e *discordgo.GuildDelete) {
@@ -239,6 +240,7 @@ func HandleGuildDelete(s *discordgo.Session, e *discordgo.GuildDelete) {
 		zap.Bool("unavailable", e.Unavailable))
 	if !e.Unavailable {
 		defer metrics.IncrCounter([]string{"core", "guild_delete"}, 1)
+		DiceGolem.Redis.SRem(fmt.Sprintf(KeyStateShardGuildFmt, strconv.Itoa(s.ShardID)), e.ID)
 	}
 }
 

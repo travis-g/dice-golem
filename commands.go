@@ -93,7 +93,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Description: "Configure your preferences",
 		Type:        discordgo.ApplicationCommandType(discordgo.ApplicationCommandOptionSubCommand),
 		// NameLocalizations: &map[discordgo.Locale]string{
-		// 	discordgo.SpanishES: "ajustes",
+		// 	discordgo.SpanishES: "preferencias",
 		// },
 		Options: []*discordgo.ApplicationCommandOption{
 			{
@@ -212,8 +212,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 // Commands to enable in the bot's home server(s).
 var CommandsHomeChat = []*discordgo.ApplicationCommand{
 	{
-		Name:                     "state",
-		Description:              "Show internal bot state information.",
+		Name:                     "health",
+		Description:              "Show bot health information.",
 		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
 	},
 	{
@@ -234,6 +234,28 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 			},
 		},
 	},
+	// {
+	// 	Name:                     "settings",
+	// 	Description:              "Server settings commands",
+	// 	DMPermission:             Ptr(false),
+	// 	DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
+	// 	Options: []*discordgo.ApplicationCommandOption{
+	// 		{
+	// 			Name:        "forward",
+	// 			Description: "Configure roll forwarding for the current channel",
+	// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
+	// 			Options: []*discordgo.ApplicationCommandOption{
+	// 				{
+	// 					Name:         "channel",
+	// 					Description:  "Destination channel",
+	// 					Type:         discordgo.ApplicationCommandOptionChannel,
+	// 					ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
+	// 					Required:     true,
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// },
 }
 
 // Option sets for commands.

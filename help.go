@@ -33,10 +33,6 @@ func makeEmbedHelp() *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
 		Title:       "Dice Golem Help",
 		Description: "I roll dice! I respond to commands like `/roll d20` and @mentions.\n</info:581956766246633475> provides more bot information.",
-		// Author: &discordgo.MessageEmbedAuthor{
-		// 	Name:    "Dice Golem",
-		// 	IconURL: DiceGolem.DefaultSession.State.User.AvatarURL("64"),
-		// },
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:  "Examples",
@@ -91,11 +87,12 @@ var InfoEmbedFields = []*discordgo.MessageEmbedField{
 
 func makeEmbedInfo() *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
-		Title:       "Dice Golem Info",
+		URL:         "https://dicegolem.io",
+		Title:       "Dice Golem",
 		Description: fmt.Sprintf("A simple, easy to use Discord bot for rolling RPG/TRPG dice notations. Dice rolls are made using a CSPRNG to ensure the results are completely random.\nDice Golem responds to Slash commands even in DMs! Use the %s command for help and examples.", MentionCommand("help")),
 		Footer: &discordgo.MessageEmbedFooter{
 			Text:    fmt.Sprintf("Built with ❤️ and 🎲 by %s", owner),
-			IconURL: DiceGolem.Sessions[0].State.User.AvatarURL("64"),
+			IconURL: DiceGolem.User.AvatarURL("64"),
 		},
 		Author: &discordgo.MessageEmbedAuthor{},
 		Fields: InfoEmbedFields,

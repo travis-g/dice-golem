@@ -142,13 +142,10 @@ type ServerCount struct {
 }
 
 func postServerCount(b *Bot) error {
-	svals, err := b.Redis.HVals(KeyShardGuildCountFmt).Result()
-	if err == nil {
+	_, shardCounts, err := guildCount(b)
+	if err != nil {
+		logger.Error("stats posting error", zap.Error(err))
 		return err
-	}
-	shardCounts := make([]int, len(svals))
-	for i, sval := range svals {
-		shardCounts[i], _ = strconv.Atoi(sval)
 	}
 	data := &ServerCount{
 		ServerCount: shardCounts,
@@ -184,11 +181,24 @@ func guildCount(b *Bot) (guilds int, sharding []int, err error) {
 	}
 
 	// counts of guilds per indexed shard
-	sharding = make([]int, len(b.Sessions))
+	_, err = DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
+		keys, err := DiceGolem.Redis.Keys(fmt.Sprintf(KeyStateShardGuildFmt, "*")).Result()
+		if err != nil {
+			return err
+		}
+		sharding = make([]int, len(keys))
+		for i, key := range keys {
+			card, err := DiceGolem.Redis.SCard(key).Result()
+			if err != nil {
+				return err
+			}
+			sharding[i] = int(card)
+		}
+		return nil
+	})
 
-	for i, s := range b.Sessions {
-		guilds += len(s.State.Guilds)
-		sharding[i] = len(s.State.Guilds)
+	for _, i := range sharding {
+		guilds += i
 	}
 	return
 }
@@ -286,11 +296,6 @@ func SelfInUsers(users []*discordgo.User) (found bool) {
 		}
 	}
 	return
-}
-
-// MentionUser returns a Discord mention string for a User.
-func MentionUser(u *discordgo.User) string {
-	return "<@" + u.ID + ">"
 }
 
 func MentionCommand(paths ...string) string {

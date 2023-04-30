@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"strconv"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -70,7 +69,7 @@ func makeStatsEmbed() []*discordgo.MessageEmbed {
 }
 
 // TODO: require a context
-func makeStateEmbed() []*discordgo.MessageEmbed {
+func makeHealthEmbed() []*discordgo.MessageEmbed {
 	stateGuilds, statesShards, _ := guildCount(DiceGolem)
 
 	memstats := runtime.MemStats{}
@@ -79,29 +78,30 @@ func makeStateEmbed() []*discordgo.MessageEmbed {
 
 	return []*discordgo.MessageEmbed{
 		{
-			Timestamp: time.Now().Local().Format(time.RFC3339),
 			Fields: []*discordgo.MessageEmbedField{
 				{
 					Name:   "Uptime",
-					Value:  fmt.Sprintf("%s\n<t:%d>", time.Since(startTime).Round(time.Second).String(), startTime.Unix()),
+					Value:  fmt.Sprintf("<t:%d> (%s)", startTime.Unix(), time.Since(startTime).Round(time.Second).String()),
 					Inline: true,
 				},
 				{
-					Name: "Memory",
-					Value: fmt.Sprintf("%s (%.2f%%)",
-						humanize.Bytes(memstats.Alloc), 100.0*float64(memstats.Alloc)/float64(sysmem.Available),
-					),
+					Name:   "Memory",
+					Value:  fmt.Sprintf("%s (%.2f%%)", humanize.Bytes(memstats.Alloc), 100.0*float64(memstats.Alloc)/float64(sysmem.Available)),
 					Inline: true,
 				},
 				{
-					Name:   "Shards",
-					Value:  humanfmt.Sprintf("`%v`", statesShards),
+					Name:   "Goroutines",
+					Value:  humanfmt.Sprintf("%d", runtime.NumGoroutine()),
 					Inline: true,
 				},
 				{
 					Name:   "Guilds",
 					Value:  humanfmt.Sprintf("%d", stateGuilds),
 					Inline: true,
+				},
+				{
+					Name:  "Shards",
+					Value: humanfmt.Sprintf("`%v`", statesShards),
 				},
 			},
 		},
@@ -122,17 +122,6 @@ func emitStats(b *Bot) {
 	if DiceGolem.Redis == nil {
 		return
 	}
-
-	unavailable := 0
-	for _, s := range DiceGolem.Sessions {
-		DiceGolem.Redis.HSet(KeyShardGuildCountFmt, strconv.Itoa(s.ShardID), strconv.Itoa(len(s.State.Guilds)))
-		for _, g := range s.State.Guilds {
-			if g.Unavailable {
-				unavailable += 1
-			}
-		}
-	}
-	metrics.SetGauge([]string{"core", "unavailable_guilds"}, float32(unavailable))
 
 	var totalExpressions int64
 	expressionsKeys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyUserGlobalExpressionsFmt, "*")).Val()

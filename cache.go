@@ -72,7 +72,7 @@ const (
 	KeyInteractionTokenFmt      = "cache:token:%s"
 	KeyUserRecentFmt            = "cache:user:%s:recent"
 	KeyUserGlobalExpressionsFmt = "cache:user:%s::expressions"
-	KeyShardGuildCountFmt       = "rolls:shards:guilds"
+	KeyStateShardGuildFmt       = "state:shards:%s:guilds"
 )
 
 // pray this is never used in a roll or label
