@@ -1,10 +1,11 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    addressable (2.5.2)
-      public_suffix (>= 2.0.2, < 4.0)
+    addressable (2.8.4)
+      public_suffix (>= 2.0.2, < 6.0)
     colorator (1.1.0)
     concurrent-ruby (1.1.5)
+    deep_merge (1.2.2)
     em-websocket (0.5.1)
       eventmachine (>= 0.12.9)
       http_parser.rb (~> 0.6.0)
@@ -27,13 +28,17 @@ GEM
       pathutil (~> 0.9)
       rouge (>= 1.7, < 4)
       safe_yaml (~> 1.0)
+    jekyll-get-json (1.0.0)
+      deep_merge (~> 1.2)
+      jekyll (>= 3.0)
     jekyll-sass-converter (1.5.2)
       sass (~> 3.4)
     jekyll-sitemap (1.4.0)
       jekyll (>= 3.7, < 5.0)
     jekyll-watch (2.2.1)
       listen (~> 3.0)
-    kramdown (1.17.0)
+    kramdown (2.3.1)
+      rexml
     liquid (4.0.0)
     listen (3.8.0)
       rb-fsevent (~> 0.10, >= 0.10.3)
@@ -41,10 +46,11 @@ GEM
     mercenary (0.3.6)
     pathutil (0.16.2)
       forwardable-extended (~> 2.6)
-    public_suffix (3.1.1)
+    public_suffix (5.0.1)
     rb-fsevent (0.10.3)
     rb-inotify (0.10.1)
       ffi (~> 1.0)
+    rexml (3.2.5)
     rouge (2.2.1)
     safe_yaml (1.0.5)
     sass (3.7.4)
@@ -54,13 +60,16 @@ GEM
       rb-inotify (~> 0.9, >= 0.9.7)
 
 PLATFORMS
-  ruby
   x86_64-darwin-20
+  x86_64-linux
   x86_64-linux-musl
 
 DEPENDENCIES
+  addressable (>= 2.8.0)
   jekyll (~> 3.7)
+  jekyll-get-json (~> 1.0)
   jekyll-sitemap (~> 1.4)
+  kramdown (>= 2.3.1)
 
 BUNDLED WITH
    2.4.7
