@@ -9,6 +9,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/bwmarrin/discordgo"
+	"github.com/travis-g/dice"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	redis "gopkg.in/redis.v3"
@@ -39,6 +40,8 @@ const intent = discordgo.IntentDirectMessages | discordgo.IntentGuildMessages | 
 
 func (b *Bot) Setup() {
 	var err error
+
+	dice.MaxRolls = uint64(b.MaxDice)
 
 	// Set up logging
 	switch b.Debug {
@@ -104,7 +107,7 @@ func (b *Bot) Open() error {
 	b.Sessions = make([]*discordgo.Session, shards)
 
 	// clear stale state cache
-	_, err = DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
+	_, _ = DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
 		keys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyStateShardGuildFmt, "*")).Val()
 		for _, key := range keys {
 			DiceGolem.Redis.Del(key)

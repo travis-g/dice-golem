@@ -22,11 +22,11 @@ func init() {
 	humanfmt = message.NewPrinter(language.English)
 }
 
-// process start time, set during init()
-var startTime time.Time
+// process init time, set during init()
+var initTime time.Time
 
 func init() {
-	startTime = time.Now()
+	initTime = time.Now()
 }
 
 // TODO: require a context
@@ -81,7 +81,7 @@ func makeHealthEmbed() []*discordgo.MessageEmbed {
 			Fields: []*discordgo.MessageEmbedField{
 				{
 					Name:   "Uptime",
-					Value:  fmt.Sprintf("<t:%d> (%s)", startTime.Unix(), time.Since(startTime).Round(time.Second).String()),
+					Value:  fmt.Sprintf("<t:%d> (%s)", initTime.Unix(), time.Since(initTime).Round(time.Second).String()),
 					Inline: true,
 				},
 				{

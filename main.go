@@ -65,6 +65,8 @@ func init() {
 }
 
 func main() {
+	var startTime = time.Now()
+
 	DiceGolem = NewBotFromConfig(NewBotConfig())
 	DiceGolem.Setup()
 	logger.Debug("loaded config", zap.Any("config", DiceGolem))
@@ -78,13 +80,15 @@ func main() {
 		logger.Fatal("error opening connections", zap.Error(err))
 	}
 	defer DiceGolem.Close()
-	logger.Info("bot started")
+
+	startDuration := time.Since(startTime)
+	logger.Info("bot started", zap.Duration("duration", startDuration.Round(time.Millisecond)))
 
 	DiceGolem.EmitNotificationMessage(&discordgo.MessageSend{
 		Content: ResponsePrefix,
 		Embeds: []*discordgo.MessageEmbed{
 			{
-				Description: fmt.Sprintf("Started %d shards!", len(DiceGolem.Sessions)),
+				Description: fmt.Sprintf("Started %d shards (%s)!", len(DiceGolem.Sessions), startDuration.Round(time.Millisecond).String()),
 				Footer: &discordgo.MessageEmbedFooter{
 					Text:    DiceGolem.User.Username,
 					IconURL: DiceGolem.User.AvatarURL("64"),
