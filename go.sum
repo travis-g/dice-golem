@@ -137,6 +137,8 @@ github.com/travis-g/dice v0.0.0-20230430013751-31378cf3bd91 h1:8dRdM02+FwmuiHQn2
 github.com/travis-g/dice v0.0.0-20230430013751-31378cf3bd91/go.mod h1:/bw/LsNVYWIJpbLK/UaEPwQSNbh2ZiDPNjfwksKYDZg=
 github.com/travis-g/dice v0.0.0-20230430020218-a009628d05e7 h1:Ve+IOAm8k93F+nY/QdrmwLfwwwIdqn94Agb0ALVs9I0=
 github.com/travis-g/dice v0.0.0-20230430020218-a009628d05e7/go.mod h1:/bw/LsNVYWIJpbLK/UaEPwQSNbh2ZiDPNjfwksKYDZg=
+github.com/travis-g/dice v0.0.0-20230511155343-6af7be717c5b h1:7ybkP0zTVzHe53sfGhb0PhlmGbWbNfR2ko+rT6oQk7Q=
+github.com/travis-g/dice v0.0.0-20230511155343-6af7be717c5b/go.mod h1:Po5HDNiUHMrP+20HSZtisHNFE6C2XvO2caDfWNk3kOc=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yusufpapurcu/wmi v1.2.2 h1:KBNDSne4vP5mbSWnJbO+51IMOXJB67QiYCSBrubbPRg=

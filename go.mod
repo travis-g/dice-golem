@@ -11,7 +11,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sethvargo/go-envconfig v0.8.2
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/travis-g/dice v0.0.0-20230430020218-a009628d05e7
+	github.com/travis-g/dice v0.0.0-20230511155343-6af7be717c5b
 	go.uber.org/zap v1.24.0
 	golang.org/x/text v0.8.0
 	gopkg.in/redis.v3 v3.6.4
