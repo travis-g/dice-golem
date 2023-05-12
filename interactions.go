@@ -358,7 +358,7 @@ func NewRollInteractionResponseFromStringWithContext(ctx context.Context, expres
 		}, err
 	}
 
-	mentionableUserIDs := []string{}
+	// mentionableUserIDs := []string{}
 	if i.Member != nil {
 		// add user's name if roll is shared to a guild channel
 		if isRollPublic(i) {
@@ -366,7 +366,7 @@ func NewRollInteractionResponseFromStringWithContext(ctx context.Context, expres
 		}
 		// allow mentioning only the user that requested the roll even if others
 		// are @mentioned (ex. '/roll expression:"3d6" label:"vs @travis' AC"')
-		mentionableUserIDs = append(mentionableUserIDs, UserFromInteraction(i).ID)
+		// mentionableUserIDs = append(mentionableUserIDs, UserFromInteraction(i).ID)
 	}
 
 	// build the message content using a template
