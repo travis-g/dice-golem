@@ -136,4 +136,3 @@
 - name: invite
   description: Request an invite for the bot.
   options: ~
-
