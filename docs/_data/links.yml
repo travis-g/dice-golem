@@ -19,6 +19,9 @@
   href: https://top.gg/bot/581956766246633475
   img: /images/topgg-mark-white.svg
   alt: Top.gg Logo
+# - text: Commands
+#   class: default
+#   href: "./commands"
 - text: Source Code
   class: github
   href: https://github.com/travis-g/dice-golem

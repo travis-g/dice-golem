@@ -1,0 +1,139 @@
+- name: roll
+  description: Roll a dice expression
+  options:
+    - type: 3
+      name: expression
+      description: "Dice expression to roll, like '2d6+1'"
+      required: true
+      autocomplete: true
+    - type: 3
+      name: label
+      description: "Roll label, like 'fire damage'"
+      autocomplete: true
+    - type: 5
+      name: detailed
+      description: Include detailed results of the roll
+    - type: 5
+      name: secret
+      description: Roll as an ephemeral roll
+    - type: 5
+      name: private
+      description: Have the result DMed to you
+- name: help
+  description: Show help for using Dice Golem.
+  options: ~
+- name: info
+  description: Show bot information for Dice Golem.
+  options: ~
+- name: secret
+  description: Make an ephemeral roll that only you will see
+  options:
+    - type: 3
+      name: expression
+      description: "Dice expression to roll, like '2d6+1'"
+      required: true
+      autocomplete: true
+    - type: 3
+      name: label
+      description: "Roll label, like 'fire damage'"
+      autocomplete: true
+    - type: 5
+      name: detailed
+      description: Include detailed results of the roll
+- name: private
+  description: Make a roll to have DMed to you
+  options:
+    - type: 3
+      name: expression
+      description: "Dice expression to roll, like '2d6+1'"
+      required: true
+      autocomplete: true
+    - type: 3
+      name: label
+      description: "Roll label, like 'fire damage'"
+      autocomplete: true
+    - type: 5
+      name: detailed
+      description: Include detailed results of the roll
+- name: clear
+  description: Data removal commands
+  options:
+    - type: 1
+      name: recent
+      description: Clear your recent roll history.
+    - type: 1
+      name: expressions
+      description: Clear your saved roll exressions.
+- name: buttons
+  description: Mobile-friendly dice button pads
+  options:
+    - type: 1
+      name: dnd5e
+      description: Common D&D 5e system dice rolls
+    - type: 1
+      name: fate
+      description: Common Fate (and Fudge) system rolls
+- name: expressions
+  description: Commands for managing saved expressions
+  options:
+    - type: 1
+      name: save
+      description: Save an expression with an optional name and label
+      options:
+        - type: 3
+          name: expression
+          description: "Dice expression to roll, like '2d6+1'"
+          required: true
+          autocomplete: true
+        - type: 3
+          name: label
+          description: "Roll label, like 'fire damage'"
+          autocomplete: true
+        - type: 3
+          name: name
+          description: "Name for the expression, like 'Fireball'"
+          autocomplete: true
+    - type: 1
+      name: unsave
+      description: Remove a saved expression
+      options:
+        - type: 3
+          name: expression
+          description: Saved expression to remove
+          required: true
+          autocomplete: true
+    - type: 1
+      name: edit
+      description: Edit your saved expressions (experimental)
+    - type: 1
+      name: export
+      description: Export your saved expressions to a CSV.
+    - type: 1
+      name: clear
+      description: Clear your saved roll exressions.
+- name: preferences
+  description: Configure your preferences
+  options:
+    - type: 1
+      name: recent
+      description: Suggestions based on your recent rolls
+      options:
+        - type: 5
+          name: enabled
+          description: Enable suggestions based on your recent rolls
+          required: true
+    - type: 1
+      name: output
+      description: Roll output preferences
+      options:
+        - type: 5
+          name: detailed
+          description: Prefer detailed roll output by default
+          required: true
+- name: ping
+  description: Check response times.
+  options: ~
+- name: invite
+  description: Request an invite for the bot.
+  options: ~
+
