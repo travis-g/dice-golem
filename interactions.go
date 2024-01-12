@@ -558,7 +558,7 @@ func InviteInteraction(ctx context.Context) {
 							Label: "Add to server",
 							Style: discordgo.LinkButton,
 							URL:   invite,
-							Emoji: discordgo.ComponentEmoji{
+							Emoji: &discordgo.ComponentEmoji{
 								Name: "dice_golem",
 								ID:   "1031958619782127616",
 							},
@@ -725,6 +725,7 @@ func ButtonsInteraction(ctx context.Context) {
 	// } else
 	// if there was an error for the interaction, send a different error response
 	if err != nil {
+		logger.Error("error sending message", zap.Error(err))
 		MeasureInteractionRespond(s.InteractionRespond, i, errRes)
 		return
 	}
