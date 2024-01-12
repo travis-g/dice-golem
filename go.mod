@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/armon/go-metrics v0.4.1
-	github.com/bwmarrin/discordgo v0.27.1
+	github.com/bwmarrin/discordgo v0.27.2-0.20240104191117-afc57886f91a
 	github.com/dustin/go-humanize v1.0.0
 	github.com/gocarina/gocsv v0.0.0-20220914091333-ceebdd90b590
 	github.com/lithammer/fuzzysearch v1.1.5
