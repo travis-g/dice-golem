@@ -1,6 +1,6 @@
-- text: Add to Server
+- text: Add Bot
   class: dicegolem
-  href: https://discord.com/oauth2/authorize?client_id=581956766246633475&permissions=274878171200&scope=applications.commands%20bot
+  href: https://discord.com/oauth2/authorize?client_id=581956766246633475
 # - text: More Info
 #   class: default
 #   href: /info
