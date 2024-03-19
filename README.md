@@ -36,7 +36,7 @@ Once Dice Golem's availble in a server there are configuration changes that can 
 For questions, bug reports, feature suggestions, and support using Dice Golem feel free to join the [support server][support-invite]. Bug reports and feature requests can also be submitted as issues on GitHub.
 
 [discord-bot-list]: https://top.gg/bot/581956766246633475
-[invite]: https://discord.com/api/oauth2/authorize?client_id=581956766246633475&permissions=274878171136&scope=bot%20applications.commands
+[invite]: https://discord.com/api/oauth2/authorize?client_id=581956766246633475
 [owner-badge]: https://top.gg/api/widget/owner/581956766246633475.svg
 [redis]: https://redis.io/
 [report-card-badge]: https://goreportcard.com/badge/github.com/travis-g/dice-golem

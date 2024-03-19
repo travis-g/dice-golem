@@ -29,8 +29,7 @@ func init() {
 	initTime = time.Now()
 }
 
-// TODO: require a context
-func makeStatsEmbed() []*discordgo.MessageEmbed {
+func makeStatsEmbed(_ context.Context) []*discordgo.MessageEmbed {
 	guilds, _, _ := guildCount(DiceGolem)
 
 	rolls, err := DiceGolem.Redis.Get("rolls:total").Int64()
@@ -68,13 +67,12 @@ func makeStatsEmbed() []*discordgo.MessageEmbed {
 	}
 }
 
-// TODO: require a context
-func makeHealthEmbed() []*discordgo.MessageEmbed {
+func makeHealthEmbed(ctx context.Context) []*discordgo.MessageEmbed {
 	stateGuilds, statesShards, _ := guildCount(DiceGolem)
 
 	memstats := runtime.MemStats{}
 	runtime.ReadMemStats(&memstats)
-	sysmem, _ := mem.VirtualMemoryWithContext(context.Background())
+	sysmem, _ := mem.VirtualMemoryWithContext(ctx)
 
 	return []*discordgo.MessageEmbed{
 		{
