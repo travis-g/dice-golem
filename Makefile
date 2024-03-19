@@ -25,7 +25,7 @@ build: fmt test
 
 .PHONY: dist
 dist:
-	@echo "--> Building Production bot..."
+	@echo "--> Building Production binary..."
 	mkdir -p dist/
 	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/dice-golem
 
@@ -44,7 +44,7 @@ clean:
 
 .PHONY: redis
 redis:
-	@echo "--> Starting Redis cache..."
+	@echo "--> Starting Redis container..."
 	docker run -p 6379:6379 -d redis
 
 .PHONY: docs

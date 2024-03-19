@@ -101,6 +101,7 @@ func main() {
 		if err := DiceGolem.ConfigureCommands(); err != nil {
 			logger.Error("commands", zap.Error(err))
 		}
+		logger.Debug("commands", zap.Any("object", DiceGolem.Commands))
 	}()
 
 	// if DBL token is provided, set up the background server count updater.

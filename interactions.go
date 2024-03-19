@@ -555,7 +555,7 @@ func InviteInteraction(ctx context.Context) {
 				discordgo.ActionsRow{
 					Components: []discordgo.MessageComponent{
 						discordgo.Button{
-							Label: "Add to server",
+							Label: "Add App",
 							Style: discordgo.LinkButton,
 							URL:   invite,
 							Emoji: &discordgo.ComponentEmoji{
@@ -572,7 +572,7 @@ func InviteInteraction(ctx context.Context) {
 		if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "Sorry, an invite link couldn't be sent. Check the bot's Discord profile for alternative links.",
+				Content: "Sorry, an invite link couldn't be sent! Check the bot's Discord profile for alternative links.",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		}); err != nil {
@@ -745,7 +745,7 @@ func HealthInteraction(ctx context.Context) {
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Flags:  discordgo.MessageFlags(1 << 12),
-				Embeds: makeHealthEmbed(),
+				Embeds: makeHealthEmbed(ctx),
 			},
 		}); err != nil {
 			logger.Error("error sending response", zap.Error(err))
@@ -767,7 +767,7 @@ func StatsInteraction(ctx context.Context) {
 		if err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Embeds: makeStatsEmbed(),
+				Embeds: makeStatsEmbed(ctx),
 			},
 		}); err != nil {
 			logger.Error("error sending response", zap.Error(err))

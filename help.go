@@ -11,7 +11,7 @@ const (
 	// HACK: use UUID
 	owner   = "trav#2397"
 	support = "https://discord.gg/XUkXda5"
-	invite  = `https://discord.com/api/oauth2/authorize?client_id=581956766246633475&permissions=274878195712&scope=bot%20applications.commands`
+	invite  = `https://discord.com/api/oauth2/authorize?client_id=581956766246633475`
 	vote    = `https://top.gg/bot/581956766246633475`
 	privacy = `https://dicegolem.io/privacy`
 	terms   = `https://dicegolem.io/terms`
