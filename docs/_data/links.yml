@@ -1,9 +1,6 @@
-- text: Add Bot
+- text: Add App
   class: dicegolem
   href: https://discord.com/oauth2/authorize?client_id=581956766246633475
-# - text: More Info
-#   class: default
-#   href: /info
 - text: Support Server
   class: discord
   href: https://discord.gg/vuE8zyc
@@ -19,6 +16,12 @@
   href: https://top.gg/bot/581956766246633475
   img: /images/topgg-mark-white.svg
   alt: Top.gg Logo
+- text: Commands List
+  class: default
+  href: /commands
+- text: FAQ
+  class: default
+  href: /faq
 - text: Source Code
   class: github
   href: https://github.com/travis-g/dice-golem

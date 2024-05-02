@@ -1,0 +1,77 @@
+---
+title: Commands
+description: Dice Golem's available Slash commands
+---
+
+<style>
+  table {
+    width: 100%;
+  }
+</style>
+
+<h1>Commands</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+      <!-- <th scope="col"></th> -->
+    </tr>
+  </thead>
+  <tbody>
+  {% assign slash_commands = site.data.commands | where: "type", "1" | sort: 'name' %}
+  {% for command in slash_commands %}
+    {% if command.options[0].type == 1 %}
+      {% assign has_subcommands = true %}
+    {% else %}
+      {% assign has_subcommands = false %}
+    {% endif %}
+    {% assign num_options = command.options.size %}
+    <tr>
+      {% capture command_type %}{{ command.type }}{% endcapture %}
+      {% capture command_name %}/{{ command.name }}{% endcapture %}
+      {% capture command_description %}{{ command.description }}{% endcapture %}
+      {% capture command_options %}{{ command.options }}{% endcapture %}
+      {% capture command_contexts %}{{ command.contexts }}{% endcapture %}
+
+      <!-- ------------------------------------------------------- -->
+      {% if has_subcommands %}
+      <th>
+        <span class="mention">{{ command_name }}</span>
+      </th>
+      <td>{{ command_description }}</td>
+    </tr>
+    <tr>
+      {% for option in command.options %}
+        {% capture option_type %}{{ option.type }}{% endcapture %}
+        {% capture option_name %}{{ option.name }}{% endcapture %}
+        {% capture option_description %}{{ option.description }}{% endcapture %}
+        {% capture option_required %}{{ option.required }}{% endcapture %}
+        <td>
+          <span class="mention">{{ command_name }} {{ option_name }}</span>
+        </td>
+        <td>{{ option_description }}</td>
+    <tr>
+      {% endfor %}
+    </tr>
+    <!-- ------------------------------------------------------- -->
+    {% else %} <!-- !has_subcommands -->
+    <th>
+      <span class="mention">{{ command_name }}</span>
+    </th>
+    <td>{{ command_description }}</td>
+    <!-- <td>
+      {% for option in command.options %}
+        {% capture option_type %}{{ option.type }}{% endcapture %}
+        {% capture option_name %}{{ option.name }}{% endcapture %}
+        {% capture option_description %}{{ option.description }}{% endcapture %}
+        {% capture option_required %}{{ option.required }}{% endcapture %}
+      {% endfor %}
+    </td> -->
+    <!-- ------------------------------------------------------- -->
+    {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

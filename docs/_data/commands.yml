@@ -1,0 +1,253 @@
+---
+- default_member_permissions: ~
+  type: 1
+  name: roll
+  description: Roll a dice expression
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+  options:
+    - type: 3
+      name: expression
+      description: "Dice expression to roll, like '2d6+1'"
+      required: true
+      autocomplete: true
+    - type: 3
+      name: label
+      description: "Roll label, like 'fire damage'"
+      autocomplete: true
+    - type: 5
+      name: detailed
+      description: Include detailed results of the roll
+    - type: 5
+      name: secret
+      description: Roll as an ephemeral roll
+    - type: 5
+      name: private
+      description: Have the result DMed to you
+- default_member_permissions: ~
+  type: 1
+  name: help
+  description: Show help for using Dice Golem.
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+- default_member_permissions: ~
+  type: 1
+  name: info
+  description: Show bot information for Dice Golem.
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+- default_member_permissions: ~
+  type: 1
+  name: secret
+  description: Make an ephemeral roll that only you will see
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+  options:
+    - type: 3
+      name: expression
+      description: "Dice expression to roll, like '2d6+1'"
+      required: true
+      autocomplete: true
+    - type: 3
+      name: label
+      description: "Roll label, like 'fire damage'"
+      autocomplete: true
+    - type: 5
+      name: detailed
+      description: Include detailed results of the roll
+- default_member_permissions: ~
+  type: 1
+  name: private
+  description: Make a roll to have DMed to you
+  contexts:
+    - 0
+    - 2
+  integration_types:
+    - 0
+    - 1
+  options:
+    - type: 3
+      name: expression
+      description: "Dice expression to roll, like '2d6+1'"
+      required: true
+      autocomplete: true
+    - type: 3
+      name: label
+      description: "Roll label, like 'fire damage'"
+      autocomplete: true
+    - type: 5
+      name: detailed
+      description: Include detailed results of the roll
+- default_member_permissions: ~
+  type: 3
+  name: Roll Message
+  description: ""
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+- default_member_permissions: ~
+  type: 1
+  name: clear
+  description: Data removal commands
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+  options:
+    - type: 1
+      name: recent
+      description: Clear your recent roll history.
+    - type: 1
+      name: expressions
+      description: Clear your saved roll exressions.
+- default_member_permissions: ~
+  type: 1
+  name: buttons
+  description: Mobile-friendly dice button pads
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+  options:
+    - type: 1
+      name: dnd5e
+      description: Common D&D 5e system dice rolls
+    - type: 1
+      name: fate
+      description: Common Fate (and Fudge) system rolls
+- default_member_permissions: ~
+  type: 1
+  name: expressions
+  description: Commands for managing saved expressions
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+  options:
+    - type: 1
+      name: save
+      description: Save an expression with an optional name and label
+      options:
+        - type: 3
+          name: expression
+          description: "Dice expression to roll, like '2d6+1'"
+          required: true
+          autocomplete: true
+        - type: 3
+          name: label
+          description: "Roll label, like 'fire damage'"
+          autocomplete: true
+        - type: 3
+          name: name
+          description: "Name for the expression, like 'Fireball'"
+          autocomplete: true
+    - type: 1
+      name: unsave
+      description: Remove a saved expression
+      options:
+        - type: 3
+          name: expression
+          description: Saved expression to remove
+          required: true
+          autocomplete: true
+    - type: 1
+      name: edit
+      description: Edit your saved expressions (experimental)
+    - type: 1
+      name: export
+      description: Export your saved expressions to a CSV.
+    - type: 1
+      name: clear
+      description: Clear your saved roll exressions.
+- default_member_permissions: ~
+  type: 3
+  name: Save Expression
+  description: ""
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+- default_member_permissions: "32"
+  type: 1
+  name: ping
+  description: Check response times.
+  contexts: ~
+  integration_types:
+    - 0
+    - 1
+- default_member_permissions: ~
+  type: 1
+  name: preferences
+  description: Configure your preferences
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+  options:
+    - type: 1
+      name: recent
+      description: Suggestions based on your recent rolls
+      options:
+        - type: 5
+          name: enabled
+          description: Enable suggestions based on your recent rolls
+          required: true
+    - type: 1
+      name: output
+      description: Roll output preferences
+      options:
+        - type: 5
+          name: detailed
+          description: Prefer detailed roll output by default
+          required: true
+- default_member_permissions: ~
+  type: 1
+  name: invite
+  description: Request an invite for the bot.
+  contexts:
+    - 0
+    - 1
+    - 2
+  integration_types:
+    - 0
+    - 1
+

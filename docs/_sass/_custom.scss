@@ -187,7 +187,7 @@ $bg-gradient-2: linear-gradient(120deg, #5461bd, #87a3e0, #5966d7);
 .mention {
   border-radius: 0.2em;
   // line-height: 1;
-  font-weight: 500;
+  font-weight: inherit;
   padding: 0 0.2em;
   color: rgba(201, 205, 251, 1);
   background-color: rgba(#3c4270, .7);

@@ -1,6 +1,6 @@
 ---
 title: Terms of Service
-description: Dice Golem's Terms of Service
+description: Dice Golem Terms of Service
 layout: default
 ---
 
