@@ -4,8 +4,11 @@ gem "jekyll", "~> 3.7"
 
 gem "kramdown", ">= 2.3.1"
 gem "addressable", ">= 2.8.0"
+gem "kramdown-parser-gfm"
 
 group :jekyll_plugins do
   gem "jekyll-get-json", "~> 1.0"
   gem "jekyll-sitemap", "~> 1.4"
 end
+
+gem "webrick", "~> 1.8"
