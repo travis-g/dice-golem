@@ -8,9 +8,9 @@ description: Common questions about Dice Golem, tips, and fixes for issues.
 
 ## Why use Dice Golem?
 
-Most Discord dice bots have similar features and commands but accept different dice roll syntaxes. Dice Golem uses a syntax similar to Roll20 and other <abbr title="Virtual Table Tops">VTTs</abbr>' "math expression" syntax, like `3 * 2d6 + 1`.
+Dice Golem is easy to use from the moment it's added and takes advantage of newer bot capabilities (message commands, autocomplete suggestions, buttons, and more). It's built to stay out of the way of your games, but still feel like a native part of Discord. You can also install it directly to your Discord account and use it anywhere!
 
-Dice Golem is easy to use from the moment it's added. It's built to stay out of the way of your games but still feel like a native part of Discord with message context commands and autocomplete suggestions. You can also install it directly to your Discord account and use it anywhere!
+Most Discord dice bots have similar features and commands but accept different dice roll syntaxes. Dice Golem uses a syntax similar to Roll20 and other <abbr title="Virtual Table Tops">VTTs</abbr>' "math expression" syntax, like `3 * 2d6 + 1`.
 
 User privacy is extremely important: whether you're in a public server with 30,000 users or a server just for you and your friends, Dice Golem <u>cannot</u> read server messages unless the messages mention Dice Golem. [Learn more](#what-messages-can-dice-golem-read) or read the bot's [Privacy Policy][privacy].
 
