@@ -9,10 +9,10 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/bwmarrin/discordgo"
+	"github.com/redis/go-redis/v9"
 	"github.com/travis-g/dice"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	redis "gopkg.in/redis.v3"
 )
 
 // Bot is a state wrapper of sharded session management.
@@ -20,8 +20,11 @@ type Bot struct {
 	*BotConfig
 	Sessions []*discordgo.Session
 	Commands BotCommands
-	Redis    *redis.Client
-	User     *discordgo.User
+	Cache    *Cache
+	Metrics  *metrics.Metrics
+
+	// The bot user
+	User *discordgo.User
 }
 
 var DiceGolem *Bot
@@ -39,6 +42,7 @@ func NewBotFromConfig(c *BotConfig) (b *Bot) {
 const intent = discordgo.IntentDirectMessages | discordgo.IntentGuildMessages | discordgo.IntentGuilds
 
 func (b *Bot) Setup() {
+	ctx := context.Background()
 	var err error
 
 	dice.MaxRolls = uint64(b.MaxDice)
@@ -65,20 +69,23 @@ func (b *Bot) Setup() {
 	}
 
 	// Set up metrics
-	// TODO: move into Bot
-	if b.StatsdAddr != "" {
-		sink, err := metrics.NewStatsdSink(b.StatsdAddr)
+	if b.StatsdAddr != nil {
+		sink, err := metrics.NewStatsdSink(*b.StatsdAddr)
 		if err != nil {
 			logger.Error("statsd", zap.Error(err))
 		}
-		metrics.NewGlobal(metrics.DefaultConfig("dice-golem"), sink)
+		if b.Metrics, err = metrics.NewGlobal(metrics.DefaultConfig("dice-golem"), sink); err != nil {
+			logger.Error("metrics", zap.Error(err))
+		}
 	}
 
+	// HACK: support an in-mem only option
 	if b.RedisAddr != "" {
 		logger.Info("connecting to redis", zap.String("address", b.RedisAddr))
 
-		b.Redis = redis.NewClient(&redis.Options{Addr: b.RedisAddr, DB: 0})
-		if _, err := b.Redis.Ping().Result(); err != nil {
+		redis := redis.NewClient(&redis.Options{Addr: b.RedisAddr, DB: 0})
+		b.Cache = NewCache(b.CacheSize, redis)
+		if _, err := b.Cache.Redis.Ping(ctx).Result(); err != nil {
 			logger.Error("failed to connect to redis", zap.Error(err))
 		}
 	}
@@ -107,13 +114,17 @@ func (b *Bot) Open(ctx context.Context) error {
 	b.Sessions = make([]*discordgo.Session, shards)
 
 	// clear stale state cache
-	_, _ = DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
-		keys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyStateShardGuildFmt, "*")).Val()
-		for _, key := range keys {
-			DiceGolem.Redis.Del(key)
+	if DiceGolem.Cache.Redis != nil {
+		if _, err := DiceGolem.Cache.Redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+			keys := DiceGolem.Cache.Redis.Keys(ctx, fmt.Sprintf(KeyStateShardGuildsFmt, "*")).Val()
+			for _, key := range keys {
+				DiceGolem.Cache.Redis.Del(ctx, key)
+			}
+			return nil
+		}); err != nil {
+			logger.Error("error clearing Redis", zap.Error(err))
 		}
-		return nil
-	})
+	}
 
 	for i := range b.Sessions {
 		s, err := discordgo.New("Bot " + b.APIToken)
@@ -226,7 +237,7 @@ func restartSession(s *discordgo.Session) (err error) {
 
 // ConfigureCommands uploads the bot's set of global and guild commands using
 // the default session.
-func (b *Bot) ConfigureCommands() error {
+func (b *Bot) ConfigureCommands(ctx context.Context) error {
 	// check available global Commands
 	existingCommands, err := b.Sessions[0].ApplicationCommands(b.SelfID, "")
 	if err != nil {
@@ -276,7 +287,10 @@ func (b *Bot) IsOwner(user *discordgo.User) bool {
 
 // EmitNotificationMessage sends a supplied message to all configured bot
 // message channels.
-func (b *Bot) EmitNotificationMessage(m *discordgo.MessageSend) error {
+func (b *Bot) EmitNotificationMessage(ctx context.Context, m *discordgo.MessageSend) error {
+	if b.Silent {
+		m.Flags = discordgo.MessageFlagsSuppressNotifications
+	}
 	for _, channel := range b.Channels {
 		if _, err := b.Sessions[0].ChannelMessageSendComplex(channel, m); err != nil {
 			logger.Error("error sending message", zap.String("channel", channel), zap.Error(err))

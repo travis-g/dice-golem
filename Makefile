@@ -32,7 +32,7 @@ dist:
 .PHONY: debug
 debug: dev
 .PHONY: dev
-dev:
+dev: test
 	@echo "--> Running in dev/debug mode..."
 	go build -ldflags="-s -w" -o dice-golem
 	GOLEM_DEBUG=true GOLEM_RECENT=4h ./dice-golem

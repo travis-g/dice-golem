@@ -53,45 +53,58 @@ func RollSliceFromSerials(serials []string) RollSlice {
 	return rolls
 }
 
-func SuggestRollsByString(ctx context.Context) {
+// SuggestRollsFromOption suggests named and unnamed expressions based on the
+// value of the `option` field of the Interaction stored within the provided
+// context.
+func SuggestRollsFromOption(ctx context.Context, option string) {
 	s, i, _ := FromContext(ctx)
 
 	data := i.ApplicationCommandData()
 	u := UserFromInteraction(i)
 
 	recents, err := CachedSerials(u)
+	logger.Debug("cached serials", zap.Any("serials", recents))
 	if err != nil {
 		logger.Error("cache error", zap.Error(err))
 	}
 
 	var choices []*discordgo.ApplicationCommandOptionChoice
-	saved := SavedNamedRolls(fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID))
+	saved := SavedNamedRolls(fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, u.ID))
 
-	// fuzzy-filtered stored rolls
-	input := getOptionByName(data.Options, "expression").StringValue()
+	input := getOptionByName(data.Options, option).StringValue()
 	if input == "" {
+		// rank the choices with recents first and with saved rolls after
 		choices = ChoicesFromRollSliceExpression(trunc(RollSliceFromSerials(recents), 5))
 		choices = append(choices, ChoicesFromRollSlice(saved)...)
 	} else {
-		// only sort by similarity if the user's entered something. by default
-		// the ranking should be by recency
+		// pull all recents, add saved expressions, and then sort by similarity
+		// only if there is input to fuzzy-filter with
 		choices = ChoicesFromRollSliceExpression(RollSliceFromSerials(recents))
 		choices = append(choices, ChoicesFromRollSlice(saved)...)
 		choices = fuzzyFilterOptionChoices(input, choices)
+		// HACK: this is wildly inefficient, but re-allocate/re-size and preface
+		// the option set with the user's current entered text
 		choices = append(
 			[]*discordgo.ApplicationCommandOptionChoice{{Name: input, Value: input}},
 			choices...,
 		)
 	}
 
-	choices = DistinctChoices(choices)
-	choices = trunc(choices, 25)
+	// what's funnier than 24? 25...which is of course Discord's accepted number
+	// of autocomplete options
+	choices = trunc(DistinctChoices(choices), 25)
 
 	logger.Debug("choices", zap.String("input", input), zap.Any("options", choices))
 
 	if err := MeasureInteractionRespond(s.InteractionRespond, i, newChoicesResponse(choices)); err != nil {
 		logger.Error("autocomplete", zap.Error(err), zap.String("user", u.ID))
 	}
+}
+
+// SuggestRolls suggests named and unnamed expressions based on the `expression`
+// option of the Interaction stored within the provided Context.
+func SuggestRolls(ctx context.Context) {
+	SuggestRollsFromOption(ctx, "expression")
 }
 
 func SuggestExpressions(ctx context.Context) {
@@ -106,7 +119,7 @@ func SuggestExpressions(ctx context.Context) {
 	}
 
 	var choices []*discordgo.ApplicationCommandOptionChoice
-	saved := SavedNamedRolls(fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID))
+	saved := SavedNamedRolls(fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, u.ID))
 
 	// fuzzy-filtered stored rolls
 	input := getOptionByName(data.Options, "expression").StringValue()
@@ -149,7 +162,7 @@ func SuggestNames(ctx context.Context) {
 		panic("unreachable code")
 	}
 
-	rolls := SavedNamedRolls(fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID))
+	rolls := SavedNamedRolls(fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, u.ID))
 
 	switch {
 	case data.Name == "expressions" && data.Options[0].Name == "unsave":
@@ -369,7 +382,7 @@ func DistinctRollLabels(rolls []NamedRollInput) (labels []string) {
 	return labels
 }
 
-func DistinctExpressionNames(rolls []*NamedRollInput) (names []string) {
+func DistinctExpressionNames(rolls RollSlice) (names []string) {
 	if len(rolls) == 0 {
 		return make([]string, 0)
 	}

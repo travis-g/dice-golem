@@ -110,8 +110,6 @@ func EvaluateRollInputWithContext(ctx context.Context, rollInput *NamedRollInput
 	)
 
 	res.ExpressionResult, err = evaluateRoll(ctx, res.Expression)
-	logger.Debug("res", zap.Any("thing", res))
-
 	if err != nil {
 		logger.Error("evaluation error",
 			zap.String("expression", res.Expression),
@@ -123,6 +121,7 @@ func EvaluateRollInputWithContext(ctx context.Context, rollInput *NamedRollInput
 		}
 		return
 	}
+	logger.Debug("evaluated roll", zap.Any("response", res))
 
 	go trackRollFromContext(ctx)
 
@@ -132,12 +131,11 @@ func EvaluateRollInputWithContext(ctx context.Context, rollInput *NamedRollInput
 }
 
 // evaluateRoll executes the given roll string and emits metrics.
-func evaluateRoll(ctx context.Context, roll string) (res *math.ExpressionResult, err error) {
+func evaluateRoll(ctx context.Context, roll string) (*math.ExpressionResult, error) {
 	defer metrics.MeasureSince([]string{"roll", "evaluate"}, time.Now())
-	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
 	defer cancel()
-	res, err = math.EvaluateExpression(ctx, roll)
-	return
+	return math.EvaluateExpression(ctx, roll)
 }
 
 func splitMultirollString(s string) []string {

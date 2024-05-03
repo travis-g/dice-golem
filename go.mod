@@ -11,17 +11,27 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sethvargo/go-envconfig v1.0.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/travis-g/dice v0.0.0-20230511165330-b68d50b20159
+	github.com/travis-g/dice v0.0.0-20240426015834-4e95258df453
 	go.uber.org/zap v1.27.0
 	golang.org/x/text v0.14.0
 	gopkg.in/redis.v3 v3.6.4
 )
 
-replace (
-	github.com/bwmarrin/discordgo => ../discordgo
-)
+replace github.com/bwmarrin/discordgo => ../discordgo
 
-require golang.org/x/net v0.22.0 // indirect
+require (
+	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/go-redis/cache/v9 v9.0.0 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/redis/go-redis/v9 v9.5.1 // indirect
+	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
+	golang.org/x/net v0.22.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
+)
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
@@ -34,7 +44,7 @@ require (
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/onsi/ginkgo v1.16.5 // indirect
-	github.com/onsi/gomega v1.20.2 // indirect
+	github.com/onsi/gomega v1.25.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
