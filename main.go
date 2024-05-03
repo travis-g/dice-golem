@@ -66,6 +66,7 @@ func init() {
 
 func main() {
 	var startTime = time.Now()
+	ctx := context.Background()
 
 	DiceGolem = NewBotFromConfig(NewBotConfig())
 	DiceGolem.Setup()
@@ -76,7 +77,7 @@ func main() {
 		http.ListenAndServe(":6060", nil)
 	}()
 
-	if err := DiceGolem.Open(); err != nil {
+	if err := DiceGolem.Open(ctx); err != nil {
 		logger.Fatal("error opening connections", zap.Error(err))
 	}
 	defer DiceGolem.Close()
@@ -89,10 +90,7 @@ func main() {
 		Embeds: []*discordgo.MessageEmbed{
 			{
 				Description: fmt.Sprintf("Started %d shards (%s)!", len(DiceGolem.Sessions), startDuration.Round(time.Millisecond).String()),
-				Footer: &discordgo.MessageEmbedFooter{
-					Text:    DiceGolem.User.Username,
-					IconURL: DiceGolem.User.AvatarURL("64"),
-				},
+				Footer:      makeEmbedFooter(),
 			},
 		},
 	})

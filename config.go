@@ -15,6 +15,7 @@ type Config struct {
 	APITimeout time.Duration `env:"API_TIMEOUT,default=3s"`
 	Wait       time.Duration `env:"WAIT,default=10s"`
 	Shard      int           `env:"SHARD,default=-1"`
+	MinShards  int           `env:"MIN_SHARDS,default=1"`
 	Count      int           `env:"COUNT,default=0"`
 	Status     string        `env:"STATUS,default=with fate!"`
 	State      bool          `env:"STATE,default=false"`

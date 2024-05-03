@@ -299,6 +299,13 @@ func MessageEmbeds(ctx context.Context, log *RollLog) []*discordgo.MessageEmbed 
 	return embeds
 }
 
+func makeEmbedFooter() *discordgo.MessageEmbedFooter {
+	return &discordgo.MessageEmbedFooter{
+		Text:    DiceGolem.User.Username,
+		IconURL: DiceGolem.User.AvatarURL("64"),
+	}
+}
+
 func embedField(response *Response) *discordgo.MessageEmbedField {
 	var field = new(discordgo.MessageEmbedField)
 	field.Inline = false
