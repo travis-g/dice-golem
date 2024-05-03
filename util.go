@@ -14,9 +14,9 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/bwmarrin/discordgo"
+	"github.com/redis/go-redis/v9"
 	"github.com/travis-g/dice"
 	"go.uber.org/zap"
-	"gopkg.in/redis.v3"
 )
 
 // Revision is the build commit identifier for the version of Dice Golem
@@ -45,12 +45,6 @@ func init() {
 		}
 		return "unknown"
 	}()
-}
-
-// SendMessage sends message data to a channel using a session.
-func SendMessage(session *discordgo.Session, channelID string, data *discordgo.MessageSend) (*discordgo.Message, error) {
-	defer metrics.MeasureSince([]string{"discord", "send_message"}, time.Now())
-	return session.ChannelMessageSendComplex(channelID, data)
 }
 
 // IsDirectMessage returns whether the Message event was spawned by a DM. DMs
@@ -107,7 +101,7 @@ func deleteInteractionResponse(s *discordgo.Session, i *discordgo.Interaction, t
 // trackRoll persists count information after a successful roll is made.
 func trackRollFromContext(ctx context.Context) {
 	// if no Redis cache, skip
-	if DiceGolem.Redis == nil {
+	if DiceGolem.Cache.Redis == nil {
 		return
 	}
 
@@ -144,15 +138,15 @@ func trackRollFromContext(ctx context.Context) {
 	}
 
 	defer metrics.MeasureSince([]string{"redis", "track_roll"}, time.Now())
-	_, err := DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
-		pipe.Incr("rolls:total")
-		pipe.Incr(fmt.Sprintf("rolls:user:%s:total", uid))
-		pipe.SAdd("rolls:users", uid)
-		pipe.SAdd("rolls:channels", cid)
-		pipe.Incr(fmt.Sprintf("rolls:guild:%s:chan:%s", gid, cid))
+	_, err := DiceGolem.Cache.Redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		pipe.Incr(ctx, "rolls:total")
+		pipe.Incr(ctx, fmt.Sprintf("rolls:user:%s:total", uid))
+		pipe.SAdd(ctx, "rolls:users", uid)
+		pipe.SAdd(ctx, "rolls:channels", cid)
+		pipe.Incr(ctx, fmt.Sprintf("rolls:guild:%s:chan:%s", gid, cid))
 		if gid != "" {
-			pipe.Incr(fmt.Sprintf("rolls:guild:%s", gid))
-			pipe.SAdd("rolls:guilds", gid)
+			pipe.Incr(ctx, fmt.Sprintf("rolls:guild:%s", gid))
+			pipe.SAdd(ctx, "rolls:guilds", gid)
 		}
 		return nil
 	})
@@ -170,7 +164,7 @@ type ServerCount struct {
 	ServerCount []int `json:"server_count"`
 }
 
-func postServerCount(b *Bot) error {
+func postGuildCount(b *Bot) error {
 	_, shardCounts, err := guildCount(b)
 	if err != nil {
 		logger.Error("stats posting error", zap.Error(err))
@@ -186,7 +180,7 @@ func postServerCount(b *Bot) error {
 	logger.Debug("shard counts", zap.Any("data", data), zap.String("url", url))
 
 	req, _ := http.NewRequest("POST", url, payload)
-	req.Header.Add("Authorization", b.TopToken)
+	req.Header.Add("Authorization", *b.TopToken)
 	req.Header.Add("Content-Type", "application/json")
 
 	res, err := http.DefaultClient.Do(req)
@@ -203,6 +197,7 @@ func postServerCount(b *Bot) error {
 }
 
 func guildCount(b *Bot) (guilds int, sharding []int, err error) {
+	ctx := context.TODO()
 	if b == nil {
 		err = errors.New("nil bot")
 		logger.Error(err.Error())
@@ -210,14 +205,14 @@ func guildCount(b *Bot) (guilds int, sharding []int, err error) {
 	}
 
 	// counts of guilds per indexed shard
-	_, err = DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
-		keys, err := DiceGolem.Redis.Keys(fmt.Sprintf(KeyStateShardGuildFmt, "*")).Result()
+	_, err = DiceGolem.Cache.Redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		keys, err := DiceGolem.Cache.Redis.Keys(ctx, fmt.Sprintf(KeyStateShardGuildsFmt, "*")).Result()
 		if err != nil {
 			return err
 		}
 		sharding = make([]int, len(keys))
 		for i, key := range keys {
-			card, err := DiceGolem.Redis.SCard(key).Result()
+			card, err := DiceGolem.Cache.Redis.SCard(ctx, key).Result()
 			if err != nil {
 				return err
 			}
@@ -230,10 +225,6 @@ func guildCount(b *Bot) (guilds int, sharding []int, err error) {
 		guilds += i
 	}
 	return
-}
-
-func ValidateChannelCross(ctx context.Context, cid string) (bool, error) {
-	return false, ErrUnexpectedError
 }
 
 // MarkdownString converts a dice group into a Markdown-compatible text format.
@@ -325,16 +316,28 @@ func embedField(response *Response) *discordgo.MessageEmbedField {
 }
 
 // SelfInUsers returns whether the bot's user is contained in a slice of users.
-func SelfInUsers(users []*discordgo.User) (found bool) {
+func SelfInUsers(users []*discordgo.User) bool {
 	for _, user := range users {
 		if user.ID == DiceGolem.SelfID {
 			return true
 		}
 	}
-	return
+	return false
 }
 
-func MentionCommand(paths ...string) string {
+func HasSendMessagesPermission(s *discordgo.Session, cid string) bool {
+	var c *discordgo.Channel
+	var err error
+	if c, err = s.Channel(cid); err != nil {
+		logger.Error("channel error", zap.Error(err))
+		return false
+	}
+	logger.Debug("channel data", zap.Any("c", c))
+	// HACK: make the API reqs which are deprecated by the lib for some reason
+	return true
+}
+
+func CommandMention(paths ...string) string {
 	var b strings.Builder
 	write := b.WriteString
 	for _, path := range paths {
@@ -346,39 +349,38 @@ func MentionCommand(paths ...string) string {
 	return fmt.Sprintf("</%s:%s>", path, DiceGolem.SelfID)
 }
 
-// Ptr returns a pointer to the passed value.
+// Ptr returns the pointer to the passed value.
 func Ptr[T any](v T) *T {
 	return &v
 }
 
 // contains returns whether a slice of strings contains a specific string.
-func contains(haystack []string, needle string) (found bool) {
+func contains(haystack []string, needle string) bool {
 	for _, hay := range haystack {
 		if hay == needle {
 			return true
 		}
 	}
-	return
+	return false
 }
 
-// trunc returns a slice of the first num items of an array if array's length is
-// longer then num. If array is shorter than num, the original array is
-// returned.
-func trunc[T any](arr []T, num int) []T {
-	if num < 0 {
+// trunc returns a slice of the first n items of an array if array's length is
+// longer then n. If array is shorter than n, the original array is returned.
+func trunc[T any](arr []T, n int) []T {
+	if n < 0 {
 		panic("cannot truncate to negative length")
 	}
-	if len(arr) > num {
-		return arr[:num]
+	if len(arr) > n {
+		return arr[:n]
 	}
 	return arr
 }
 
-// truncString truncates a string to a length if the string's length is over
-// num characters.
-func truncString(s string, num int) string {
-	if len(s) > num {
-		return s[:num]
+// truncString returns a slice of a string truncted to length n if the string's
+// length is over n characters.
+func truncString(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
 	}
 	return s
 }

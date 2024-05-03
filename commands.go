@@ -14,7 +14,8 @@ type BotCommands struct {
 // Defaults for command settings.
 var (
 	defaultIntegrationTypes = []discordgo.IntegrationType{discordgo.GuildInstallIntegrationType, discordgo.UserInstallIntegrationType}
-	defaultContexts         = []discordgo.ContextType{discordgo.GuildContextType, discordgo.BotDMContextType, discordgo.PrivateChannelContextType}
+	defaultContextTypes     = []discordgo.ContextType{discordgo.GuildContextType, discordgo.BotDMContextType, discordgo.PrivateChannelContextType}
+	buttonsContextTypes     = []discordgo.ContextType{discordgo.GuildContextType, discordgo.BotDMContextType}
 )
 
 // CommandsGlobalChat are the globally-enabled Slash commands supported by the
@@ -25,7 +26,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:             "roll",
 		Description:      "Roll a dice expression",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		Options:          MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed, rollOptionsSecret, rollOptionsPrivate),
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "tirar",
@@ -38,7 +39,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:             "help",
 		Description:      "Show help for using Dice Golem.",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "ayuda",
 		},
@@ -50,7 +51,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:             "info",
 		Description:      "Show bot information for Dice Golem.",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "información",
 		},
@@ -62,7 +63,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:             "secret",
 		Description:      "Make an ephemeral roll that only you will see",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		Options:          MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "secreto",
@@ -88,16 +89,16 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:             "clear",
 		Description:      "Data removal commands",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "recent",
-				Description: "Clear your recent roll history.",
+				Description: "Clear all of your recent roll history.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 			{
 				Name:        "expressions",
-				Description: "Clear your saved roll exressions.",
+				Description: "Clear all of your saved roll exressions.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 		},
@@ -109,7 +110,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:             "preferences",
 		Description:      "Configure your preferences",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		Type:             discordgo.ApplicationCommandType(discordgo.ApplicationCommandOptionSubCommand),
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "preferencias",
@@ -145,19 +146,55 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	},
 	{
 		Name:             "buttons",
-		Description:      "Mobile-friendly dice button pads",
+		Description:      "Mobile-friendly dice buttons and macro pads",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         buttonsContextTypes,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "dnd5e",
-				Description: "Common D&D 5e system dice rolls",
+				Description: "Common D&D 5e system dice rolls.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 			{
 				Name:        "fate",
-				Description: "Common Fate (and Fudge) system rolls",
+				Description: "Common Fate (and Fudge) system rolls.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
+			{
+				Name:        "d20",
+				Description: "Modifiers for a D20 roll.",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
+			{
+				Name:        "modifiers",
+				Description: "Modifiers for a base expression",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:         discordgo.ApplicationCommandOptionString,
+						Name:         "expression",
+						Description:  "Base expression for the button pad, like '2d6+1'",
+						Required:     true,
+						Autocomplete: true,
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "lowest",
+						Description: "Lowest integer modifier for the button pad, like '-3'",
+						MinValue:    Ptr[float64](-24),
+						MaxValue:    float64(0),
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionInteger,
+						Name:        "highest",
+						Description: "Highest integer modifier for the button pad, like '10'",
+						MinValue:    Ptr[float64](0),
+						MaxValue:    float64(24),
+					},
+				},
+				NameLocalizations: map[discordgo.Locale]string{
+					discordgo.SpanishES: "modificadores",
+				},
 			},
 		},
 		NameLocalizations: &map[discordgo.Locale]string{
@@ -166,9 +203,9 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	},
 	{
 		Name:             "expressions",
-		Description:      "Commands for managing saved expressions",
+		Description:      "Save and manage dice expressions",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "save",
@@ -202,39 +239,51 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 			},
 			{
 				Name:        "clear",
-				Description: "Clear your saved roll exressions.",
+				Description: "Clear all of your saved roll exressions.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
+		},
+		NameLocalizations: &map[discordgo.Locale]string{
+			discordgo.SpanishES: "expresiones",
 		},
 	},
 	{
 		Name:                     "ping",
-		Description:              "Check response times.",
+		Description:              "View response times.",
 		IntegrationTypes:         defaultIntegrationTypes,
 		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
+		DescriptionLocalizations: &map[discordgo.Locale]string{
+			discordgo.SpanishES: "Ver tiempos de respuesta",
+		},
 	},
 	{
-		Name:             "invite",
+		Name:             "add",
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
-		Description:      "Request an invite for the bot.",
+		Contexts:         defaultContextTypes,
+		Description:      "Add the bot to a server or your account.",
+		NameLocalizations: &map[discordgo.Locale]string{
+			discordgo.SpanishES: "añadir",
+		},
+		DescriptionLocalizations: &map[discordgo.Locale]string{
+			discordgo.SpanishES: "Añadir el bot a un servidor o a tu cuenta",
+		},
 	},
 	{
 		Name:             "Roll Message",
 		Type:             discordgo.MessageApplicationCommand,
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
-			discordgo.SpanishES: "Tirar mensaje",
+			discordgo.SpanishES: "Tirar Mensaje",
 		},
 	},
 	{
 		Name:             "Save Expression",
 		Type:             discordgo.MessageApplicationCommand,
 		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContexts,
+		Contexts:         defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
-			discordgo.SpanishES: "Guardar tira",
+			discordgo.SpanishES: "Guardar Tira",
 		},
 	},
 }
@@ -252,40 +301,30 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
 	},
 	{
-		Name:        "debug",
-		Description: "The debug interaction handler",
+		Name:                     "settings",
+		Description:              "Server settings commands (experimental)",
+		DMPermission:             Ptr(false),
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
 		Options: []*discordgo.ApplicationCommandOption{
 			{
-				Name:         "channel",
-				Description:  "Selected channel",
-				Type:         discordgo.ApplicationCommandOptionChannel,
-				ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
-				Required:     true,
+				Name:        "forward",
+				Description: "Configure roll forwarding for the current channel",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:         "channel",
+						Description:  "Destination channel",
+						Type:         discordgo.ApplicationCommandOptionChannel,
+						ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
+						Required:     true,
+					},
+				},
 			},
 		},
+		NameLocalizations: &map[discordgo.Locale]string{
+			discordgo.SpanishES: "ajustes",
+		},
 	},
-	// {
-	// 	Name:                     "settings",
-	// 	Description:              "Server settings commands",
-	// 	DMPermission:             Ptr(false),
-	// 	DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
-	// 	Options: []*discordgo.ApplicationCommandOption{
-	// 		{
-	// 			Name:        "forward",
-	// 			Description: "Configure roll forwarding for the current channel",
-	// 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-	// 			Options: []*discordgo.ApplicationCommandOption{
-	// 				{
-	// 					Name:         "channel",
-	// 					Description:  "Destination channel",
-	// 					Type:         discordgo.ApplicationCommandOptionChannel,
-	// 					ChannelTypes: []discordgo.ChannelType{discordgo.ChannelTypeGuildText},
-	// 					Required:     true,
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// },
 	{
 		Name:                     "golemancy",
 		Description:              "Bot control commands",
@@ -313,6 +352,11 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 				},
 			},
 		},
+	},
+	{
+		Name:                     "debug",
+		Description:              "The debug interaction handler",
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
 	},
 }
 
@@ -354,6 +398,9 @@ var (
 			Type:        discordgo.ApplicationCommandOptionBoolean,
 			Name:        "private",
 			Description: "Have the result DMed to you",
+			NameLocalizations: map[discordgo.Locale]string{
+				discordgo.SpanishES: "privado",
+			},
 		},
 	}
 	rollOptionsName = []*discordgo.ApplicationCommandOption{

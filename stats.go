@@ -29,19 +29,19 @@ func init() {
 	initTime = time.Now()
 }
 
-func makeStatsEmbed(_ context.Context) []*discordgo.MessageEmbed {
+func makeStatsEmbed(ctx context.Context) []*discordgo.MessageEmbed {
 	guilds, _, _ := guildCount(DiceGolem)
 
-	rolls, err := DiceGolem.Redis.Get("rolls:total").Int64()
+	rolls, err := DiceGolem.Cache.Redis.Get(ctx, "rolls:total").Int64()
 	if err != nil {
 		logger.Warn("stats", zap.String("error", "can't retrieve roll count"))
 		rolls = -1
 	}
 
 	var totalExpressions int64
-	keys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyUserGlobalExpressionsFmt, "*")).Val()
+	keys := DiceGolem.Cache.Redis.Keys(ctx, fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, "*")).Val()
 	for _, key := range keys {
-		totalExpressions += DiceGolem.Redis.HLen(key).Val()
+		totalExpressions += DiceGolem.Cache.Redis.HLen(ctx, key).Val()
 	}
 
 	return []*discordgo.MessageEmbed{
@@ -74,6 +74,8 @@ func makeHealthEmbed(ctx context.Context) []*discordgo.MessageEmbed {
 	runtime.ReadMemStats(&memstats)
 	sysmem, _ := mem.VirtualMemoryWithContext(ctx)
 
+	cacheSize := DiceGolem.Cache.Len()
+
 	return []*discordgo.MessageEmbed{
 		{
 			Fields: []*discordgo.MessageEmbedField{
@@ -85,6 +87,11 @@ func makeHealthEmbed(ctx context.Context) []*discordgo.MessageEmbed {
 				{
 					Name:   "Memory",
 					Value:  fmt.Sprintf("%s (%.2f%%)", humanize.Bytes(memstats.Alloc), 100.0*float64(memstats.Alloc)/float64(sysmem.Available)),
+					Inline: true,
+				},
+				{
+					Name:   "Cache Size",
+					Value:  fmt.Sprintf("%d", cacheSize),
 					Inline: true,
 				},
 				{
@@ -112,7 +119,7 @@ func makeHealthEmbed(ctx context.Context) []*discordgo.MessageEmbed {
 // emitStats emits telemetry metrics. It will try to emit as
 // many metrics as possible.
 func emitStats(b *Bot) {
-	defer metrics.MeasureSince([]string{"core", "metrics"}, time.Now())
+	ctx := context.Background()
 	metrics.SetGauge([]string{"core", "heartbeat"}, float32(b.Sessions[0].HeartbeatLatency()/time.Millisecond))
 	guilds, _, err := guildCount(DiceGolem)
 	if err == nil {
@@ -120,33 +127,33 @@ func emitStats(b *Bot) {
 	}
 
 	// redis cache metrics
-	if DiceGolem.Redis == nil {
+	if DiceGolem.Cache.Redis == nil {
 		return
 	}
 
 	var totalExpressions int64
-	expressionsKeys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyUserGlobalExpressionsFmt, "*")).Val()
+	expressionsKeys := DiceGolem.Cache.Redis.Keys(ctx, fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, "*")).Val()
 	for _, key := range expressionsKeys {
-		totalExpressions += DiceGolem.Redis.HLen(key).Val()
+		totalExpressions += DiceGolem.Cache.Redis.HLen(ctx, key).Val()
 	}
 	metrics.SetGauge([]string{"storage", "expressions", "user_count"}, float32(len(expressionsKeys)))
 	metrics.SetGauge([]string{"storage", "expressions", "count"}, float32(totalExpressions))
 
 	var totalCache int64
-	cacheKeys := DiceGolem.Redis.Keys(fmt.Sprintf(KeyUserRecentFmt, "*")).Val()
+	cacheKeys := DiceGolem.Cache.Redis.Keys(ctx, fmt.Sprintf(KeyCacheUserRecentFmt, "*")).Val()
 	for _, key := range cacheKeys {
-		totalCache += DiceGolem.Redis.ZCard(key).Val()
+		totalCache += DiceGolem.Cache.Redis.ZCard(ctx, key).Val()
 	}
 	metrics.SetGauge([]string{"storage", "recent", "user_count"}, float32(len(cacheKeys)))
 	metrics.SetGauge([]string{"storage", "recent", "count"}, float32(totalCache))
 
 	go func() {
 		t := time.Now() // defers don't work properly in a goroutine
-		_ = DiceGolem.Redis.Ping()
+		_ = DiceGolem.Cache.Redis.Ping(ctx)
 		metrics.MeasureSince([]string{"redis", "ping"}, t)
 	}()
 
-	if rolls, err := DiceGolem.Redis.Get("rolls:total").Int64(); err == nil {
+	if rolls, err := DiceGolem.Cache.Redis.Get(ctx, "rolls:total").Int64(); err == nil {
 		metrics.SetGauge([]string{"rolls", "total"}, float32(rolls))
 	} else {
 		logger.Warn("metrics", zap.String("error", "can't retrieve roll count"))

@@ -8,13 +8,15 @@ import (
 )
 
 const (
-	// HACK: use UUID
-	owner   = "trav#2397"
-	support = "https://discord.gg/XUkXda5"
-	invite  = `https://discord.com/api/oauth2/authorize?client_id=581956766246633475`
-	vote    = `https://top.gg/bot/581956766246633475`
-	privacy = `https://dicegolem.io/privacy`
-	terms   = `https://dicegolem.io/terms`
+	owner     = "@travvyg"
+	support   = "https://discord.gg/XUkXda5"
+	id        = `581956766246633475`
+	add       = `https://discord.com/api/oauth2/authorize?client_id=` + id
+	directory = `discord://application-directory/` + id
+	vote      = `https://top.gg/bot/` + id
+	faq       = `https://dicegolem.io/faq`
+	privacy   = `https://dicegolem.io/privacy`
+	terms     = `https://dicegolem.io/terms`
 )
 
 var examples = strings.TrimSpace("" +
@@ -48,7 +50,7 @@ func makeEmbedHelp() *discordgo.MessageEmbed {
 			},
 			{
 				Name:  "Rerolling",
-				Value: "Reroll dice with the `r` modifier. Reroll dice only once with `ro`. Reroll by comparisons (`r<3`) or for individual possible results (`r2`). Multiple reroll modifiers can be specified (`r2r4`).",
+				Value: "Reroll dice with the `r` modifier. Reroll dice up to once with `ro`. Reroll by comparisons (`r<3`) or for individual possible results (`r2`). Multiple reroll modifiers can be specified (`r2r4`).",
 			},
 			// {
 			// 	Name:  "Critical Successes/Failures",
@@ -80,8 +82,9 @@ var InfoEmbedFields = []*discordgo.MessageEmbedField{
 		Inline: true,
 	},
 	{
-		Name:  "Links",
-		Value: fmt.Sprintf("[Privacy Policy](%s) | [Terms of Service](%s) | [Support Server](%s) | [Info (Top.gg)](%s)", privacy, terms, support, vote),
+		Name: "Links",
+		Value: fmt.Sprintf("[App Directory](%s) | [Support Server](%s) | [FAQ](%s) | [Info (Top.gg)](%s)\n[Privacy Policy](%s) | [Terms of Service](%s)",
+			directory, support, faq, vote, privacy, terms),
 	},
 }
 
@@ -89,7 +92,7 @@ func makeEmbedInfo() *discordgo.MessageEmbed {
 	return &discordgo.MessageEmbed{
 		URL:         "https://dicegolem.io",
 		Title:       "Dice Golem",
-		Description: fmt.Sprintf("A simple, easy to use Discord bot for rolling RPG/TRPG dice notations. Dice rolls are made using a CSPRNG to ensure the results are completely random.\nDice Golem responds to Slash commands even in DMs! Use the %s command for help and examples.", MentionCommand("help")),
+		Description: fmt.Sprintf("A simple, easy to use Discord bot for rolling RPG/TRPG dice. Dice rolls are made using a CSPRNG to ensure the results are completely random.\nDice Golem responds to Slash commands even in DMs! Use the %s command for help and examples.", CommandMention("help")),
 		Footer: &discordgo.MessageEmbedFooter{
 			Text:    fmt.Sprintf("Built with ❤️ and 🎲 by %s", owner),
 			IconURL: DiceGolem.User.AvatarURL("64"),

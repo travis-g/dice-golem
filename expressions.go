@@ -1,25 +1,29 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/bwmarrin/discordgo"
 	"github.com/lithammer/fuzzysearch/fuzzy"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
-	redis "gopkg.in/redis.v3"
 )
+
+// pray this is never used in a roll or label
+var delim = '|'
 
 type NamedRollInput struct {
 	Expression string `json:"e" mapstructure:"expression" csv:"expression"`
 	Name       string `json:"n,omitempty" mapstructure:"name,omitempty" csv:"name"`
 	Label      string `json:"l,omitempty" mapstructure:"label,omitempty" csv:"label"`
 }
+
+type RollSlice []*NamedRollInput
 
 // Validate validates that a NamedRollInput's fields are valid.
 func (i *NamedRollInput) Validate() error {
@@ -72,7 +76,7 @@ func (i *NamedRollInput) RollableString() string {
 // okForAutocomplete returns whether the roll input can be safely used as a
 // discordgo.ApplicationCommandOptionChoice based on Discord's property limits.
 // If not ok an error indicating validation reason is returned.
-func (i *NamedRollInput) okForAutocomplete() (ok bool, _ error) {
+func (i *NamedRollInput) okForAutocomplete(ctx context.Context) (ok bool, _ error) {
 	if len(i.RollableString()) > 100 {
 		return false, errors.New("combined expression and label exceed Discord limit")
 	}
@@ -110,7 +114,6 @@ func (i *NamedRollInput) Serialize() string {
 func (i *NamedRollInput) Deserialize(serial string) {
 	if i == nil {
 		i = new(NamedRollInput)
-		_ = i
 	}
 	if serial == "" {
 		return
@@ -137,7 +140,7 @@ func (i *NamedRollInput) Clone() *NamedRollInput {
 	}
 }
 
-func NamedRollInputsFromMap(m map[string]string) []*NamedRollInput {
+func NamedRollInputsFromMap(m map[string]string) RollSlice {
 	rolls := []*NamedRollInput{}
 	for _, val := range m {
 		roll := new(NamedRollInput)
@@ -149,10 +152,11 @@ func NamedRollInputsFromMap(m map[string]string) []*NamedRollInput {
 }
 
 func SetNamedRoll(u *discordgo.User, gid string, r *NamedRollInput) (_ error) {
-	if DiceGolem.Redis == nil {
+	ctx := context.TODO()
+	if DiceGolem.Cache.Redis == nil {
 		return ErrNoRedisClient
 	}
-	if ok, err := r.okForAutocomplete(); !ok {
+	if ok, err := r.okForAutocomplete(ctx); !ok {
 		return err
 	}
 
@@ -161,11 +165,12 @@ func SetNamedRoll(u *discordgo.User, gid string, r *NamedRollInput) (_ error) {
 		logger.Error("error marshalling roll", zap.Error(err))
 	}
 
-	key := fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID)
-	if _, err = DiceGolem.Redis.Pipelined(func(pipe *redis.Pipeline) error {
-		pipe.HSet(key, r.ID(), string(b))
+	key := fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, u.ID)
+	if _, err = DiceGolem.Cache.Redis.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		defer DiceGolem.Cache.Remove(key)
+		pipe.HSet(ctx, key, r.ID(), string(b))
 		// re-set TTL for all saved data
-		pipe.Expire(key, DiceGolem.DataTTL)
+		pipe.Expire(ctx, key, DiceGolem.DataTTL)
 		return nil
 	}); err != nil {
 		logger.Error("error saving roll", zap.Error(err))
@@ -174,23 +179,15 @@ func SetNamedRoll(u *discordgo.User, gid string, r *NamedRollInput) (_ error) {
 	return err
 }
 
-func GetNamedRolls(u *discordgo.User, gid string) ([]*NamedRollInput, error) {
-	if DiceGolem.Redis == nil {
-		return nil, ErrNoRedisClient
-	}
-	key := fmt.Sprintf(KeyUserGlobalExpressionsFmt, u.ID)
+func GetNamedRolls(u *discordgo.User, gid string) (RollSlice, error) {
+	ctx := context.TODO()
+	key := fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, u.ID)
 
-	t := time.Now()
-	data, err := DiceGolem.Redis.HGetAllMap(key).Result()
-	go metrics.MeasureSince([]string{"redis", "hgetall"}, t)
-	if err != nil {
-		return nil, err
-	}
-
-	return NamedRollInputsFromMap(data), err
+	data := DiceGolem.Cache.HGetAll(ctx, key)
+	return NamedRollInputsFromMap(data), nil
 }
 
-func FilterNamedRollInputs(input string, targets []*NamedRollInput) []*NamedRollInput {
+func FilterNamedRollInputs(input string, targets RollSlice) RollSlice {
 	options := make([]string, len(targets))
 	stringMap := make(map[string]*NamedRollInput)
 	for i, option := range targets {
