@@ -86,7 +86,7 @@ func (b *Bot) Setup() {
 
 // Open opens sharded sessions based on Discord's /gateway/bot response and
 // returns the number of shards spawned.
-func (b *Bot) Open() error {
+func (b *Bot) Open(ctx context.Context) error {
 	defer metrics.MeasureSince([]string{"bot", "open"}, time.Now())
 
 	// Create a new Discord session using the provided bot token.
@@ -101,9 +101,9 @@ func (b *Bot) Open() error {
 	if err != nil {
 		logger.Fatal("error querying gateway", zap.Error(err))
 	}
-
-	shards := int(math.Max(float64(gr.Shards), 2))
 	logger.Info("gateway response", zap.Any("data", gr))
+
+	shards := int(math.Max(float64(gr.Shards), float64(b.MinShards)))
 	b.Sessions = make([]*discordgo.Session, shards)
 
 	// clear stale state cache
@@ -174,7 +174,7 @@ func (b *Bot) Open() error {
 	}
 
 	// block until bot is at least self-aware
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	wg.Add(1)
 	for {
@@ -188,18 +188,40 @@ func (b *Bot) Open() error {
 
 	// wait until sessions are open
 	wg.Wait()
-
 	return nil
 }
 
-func openSession(i int, s *discordgo.Session) (err error) {
+func openSession(_ int, s *discordgo.Session) (err error) {
 	defer metrics.MeasureSince([]string{"session", "open"}, time.Now())
 	if err = s.Open(); err != nil {
 		logger.Error("error opening session", zap.Error(err))
 	} else {
-		logger.Info("session open", zap.Int("id", s.ShardID))
+		logger.Info("session opened", zap.Int("id", s.ShardID))
 	}
 	return err
+}
+
+func closeSession(s *discordgo.Session) (err error) {
+	defer metrics.MeasureSince([]string{"session", "close"}, time.Now())
+	if err = s.Close(); err != nil {
+		logger.Error("error closing session", zap.Error(err))
+	} else {
+		logger.Info("session closed", zap.Int("id", s.ShardID))
+	}
+	return err
+}
+
+func restartSession(s *discordgo.Session) (err error) {
+	defer metrics.MeasureSince([]string{"session", "restart"}, time.Now())
+	if err = closeSession(s); err != nil {
+		logger.Error("error restarting session", zap.Error(err))
+		return
+	}
+	if err = openSession(0, s); err != nil {
+		logger.Error("error restarting session", zap.Error(err))
+		return
+	}
+	return
 }
 
 // ConfigureCommands uploads the bot's set of global and guild commands using
