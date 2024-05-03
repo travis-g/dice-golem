@@ -286,6 +286,34 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 	// 		},
 	// 	},
 	// },
+	{
+		Name:                     "golemancy",
+		Description:              "Bot control commands",
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionAdministrator)),
+		DMPermission:             Ptr(false),
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Name:        "restart",
+				Description: "Close and reopen bot connections to Discord",
+				Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Name:        "session",
+						Description: "Close and reopen a shard's session",
+						Type:        discordgo.ApplicationCommandOptionSubCommand,
+						Options: []*discordgo.ApplicationCommandOption{
+							{
+								Name:        "id",
+								Description: "ID of the target shard",
+								Type:        discordgo.ApplicationCommandOptionInteger,
+								Required:    true,
+							},
+						},
+					},
+				},
+			},
+		},
+	},
 }
 
 // Option sets for commands.

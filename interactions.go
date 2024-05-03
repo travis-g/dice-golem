@@ -73,9 +73,10 @@ var (
 		"settings":    SettingsInteraction,
 
 		// home-server commands
-		"health": HealthInteraction,
-		"stats":  StatsInteraction,
-		"debug":  DebugInteraction,
+		"health":    HealthInteraction,
+		"stats":     StatsInteraction,
+		"golemancy": InteractionGolemancy,
+		"debug":     DebugInteraction,
 
 		// message commands
 		"Roll Message": RollMessageInteractionCreate,
@@ -530,10 +531,7 @@ func PingInteraction(ctx context.Context) {
 					Inline: true,
 				},
 			},
-			Footer: &discordgo.MessageEmbedFooter{
-				Text:    DiceGolem.User.Username,
-				IconURL: DiceGolem.User.AvatarURL("64"),
-			},
+			Footer: makeEmbedFooter(),
 		},
 	}
 	if _, err := s.InteractionResponseEdit(i, &discordgo.WebhookEdit{
@@ -944,6 +942,48 @@ func isRollPublic(i *discordgo.Interaction) bool {
 		return false
 	}
 	return true
+}
+
+func InteractionGolemancy(ctx context.Context) {
+	s, i, _ := FromContext(ctx)
+	if !DiceGolem.IsOwner(UserFromInteraction(i)) {
+		if err := MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("This command is reserved for bot administrators.")); err != nil {
+			logger.Error("error sending response", zap.Error(err))
+		}
+		return
+	}
+	data := i.ApplicationCommandData()
+	group := data.Options[0]
+	switch group.Name {
+	case "restart":
+		subcommand := group.Options[0]
+		switch subcommand.Name {
+		case "session":
+			id := getOptionByName(subcommand.Options, "id").IntValue()
+			if session := DiceGolem.Sessions[id]; session != nil {
+				MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+				})
+				now := time.Now()
+				if err := restartSession(session); err != nil {
+					logger.Error("error restarting session", zap.Error(err), zap.Int("shard", s.ShardID))
+				}
+				if _, err := s.InteractionResponseEdit(i, &discordgo.WebhookEdit{
+					Embeds: Ptr([]*discordgo.MessageEmbed{
+						{
+							Description: fmt.Sprintf("Session %d restarted (%s)!", s.ShardID, humanfmt.Sprintf("%s", time.Now().Sub(now))),
+							Footer:      makeEmbedFooter(),
+						},
+					}),
+				},
+				); err != nil {
+					logger.Error("error responding to restart", zap.Error(err))
+				}
+			}
+		}
+	default:
+		panic(fmt.Errorf("unhandled golemancy subcommand: %s", group.Name))
+	}
 }
 
 func DebugInteraction(ctx context.Context) {
