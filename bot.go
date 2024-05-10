@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -156,42 +155,51 @@ func (b *Bot) Open(ctx context.Context) error {
 		b.Sessions[i] = s
 	}
 
-	// create a WaitGroup to ensure that we can open sessions concurrently but
-	// still wait until we've also got core bot info back from Discord. This
-	// should use a worker pool for bucketed sharding with max_concurrency:
+	// open sessions with waiting using a worker pool of max_concurrency:
 	// https://gobyexample.com/worker-pools
-	var wg sync.WaitGroup
-
-	for i, s := range b.Sessions {
-		wg.Add(1)
-		go func(index int, session *discordgo.Session) {
-			defer wg.Done()
-			logger.Info("opening session", zap.Int("shard", index))
-			if err := openSession(index, session); err != nil {
-				logger.Error("error opening session", zap.Int("shard", index), zap.Error(err))
+	workerFunc := func(id int, sessions <-chan *discordgo.Session, done chan<- error) {
+		for j := range sessions {
+			err := openSession(j)
+			if err != nil {
+				logger.Error("error opening session", zap.Int("shard", id), zap.Error(err))
 			}
-		}(i, s)
+			done <- err
+		}
 	}
 
+	sessions := make(chan *discordgo.Session, len(b.Sessions))
+	done := make(chan error, len(b.Sessions))
+	defer close(sessions)
+
+	// start concurrent workers
+	for w := 1; w <= gr.SessionStartLimit.MaxConcurrency; w++ {
+		go workerFunc(w, sessions, done)
+	}
+
+	// forward each session to the work pool
+	for _, s := range b.Sessions {
+		sessions <- s
+	}
 	// block until bot is at least self-aware
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	wg.Add(1)
 	for {
 		DiceGolem.User, err = DiceGolem.Sessions[0].User(DiceGolem.SelfID)
 		if err == nil || ctx.Err() != nil {
 			logger.Info("user data", zap.Any("user", DiceGolem.User))
-			wg.Done()
 			break
 		}
 	}
 
 	// wait until sessions are open
-	wg.Wait()
+	for e := 0; e < len(b.Sessions); e++ {
+		<-done
+	}
 	return nil
 }
 
-func openSession(_ int, s *discordgo.Session) (err error) {
+func openSession(s *discordgo.Session) (err error) {
+	logger.Info("opening session", zap.Int("shard", s.ShardID))
 	defer metrics.MeasureSince([]string{"session", "open"}, time.Now())
 	if err = s.Open(); err != nil {
 		logger.Error("error opening session", zap.Error(err))
@@ -202,6 +210,7 @@ func openSession(_ int, s *discordgo.Session) (err error) {
 }
 
 func closeSession(s *discordgo.Session) (err error) {
+	logger.Info("closing session", zap.Int("shard", s.ShardID))
 	defer metrics.MeasureSince([]string{"session", "close"}, time.Now())
 	if err = s.Close(); err != nil {
 		logger.Error("error closing session", zap.Error(err))
@@ -212,12 +221,13 @@ func closeSession(s *discordgo.Session) (err error) {
 }
 
 func restartSession(s *discordgo.Session) (err error) {
+	logger.Info("restarting session", zap.Int("shard", s.ShardID))
 	defer metrics.MeasureSince([]string{"session", "restart"}, time.Now())
 	if err = closeSession(s); err != nil {
 		logger.Error("error restarting session", zap.Error(err))
 		return
 	}
-	if err = openSession(0, s); err != nil {
+	if err = openSession(s); err != nil {
 		logger.Error("error restarting session", zap.Error(err))
 		return
 	}

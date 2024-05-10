@@ -947,25 +947,26 @@ func isRollPublic(i *discordgo.Interaction) bool {
 func InteractionGolemancy(ctx context.Context) {
 	s, i, _ := FromContext(ctx)
 	if !DiceGolem.IsOwner(UserFromInteraction(i)) {
-		if err := MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("This command is reserved for bot administrators.")); err != nil {
+		if err := MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("This command is restricted to bot owners.")); err != nil {
 			logger.Error("error sending response", zap.Error(err))
 		}
 		return
 	}
 	data := i.ApplicationCommandData()
 	group := data.Options[0]
+	logger.Info("golemancy command received", zap.Any("data", data))
 	switch group.Name {
 	case "restart":
 		subcommand := group.Options[0]
 		switch subcommand.Name {
 		case "session":
 			id := getOptionByName(subcommand.Options, "id").IntValue()
-			if session := DiceGolem.Sessions[id]; session != nil {
+			if targetSession := DiceGolem.Sessions[id]; targetSession != nil {
 				MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 				})
 				now := time.Now()
-				if err := restartSession(session); err != nil {
+				if err := restartSession(targetSession); err != nil {
 					logger.Error("error restarting session", zap.Error(err), zap.Int("shard", s.ShardID))
 				}
 				if _, err := s.InteractionResponseEdit(i, &discordgo.WebhookEdit{
