@@ -269,7 +269,7 @@ func (b *Bot) ConfigureCommands(ctx context.Context) error {
 func (b *Bot) Close() {
 	for _, s := range b.Sessions {
 		logger.Info(fmt.Sprintf("closing session %d", s.ShardID))
-		if err := s.Close(); err != nil {
+		if err := closeSession(s); err != nil {
 			logger.Error("error closing session", zap.Error(err))
 		}
 	}
