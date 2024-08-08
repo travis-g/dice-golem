@@ -19,7 +19,7 @@ More features to come! You can follow what's being worked on and help test out b
 
 ## Quick Add
 
-Invite Dice Golem using [this link][invite]. You can also find it listed on [top.gg][discord-bot-list]. If you're a member of the [support server][support-invite] or another server with the bot already you can invite Dice Golem using the _Add to Server_ button in its profile.
+Add Dice Golem to your server or user using [this link][invite] or from Discord's [Application Directory][directory]. You can also find it listed on [top.gg][discord-bot-list]. If you're a member of the [support server][support-invite] or another server with the bot you can invite Dice Golem using the _Add App_ button in its profile.
 
 <!--
 
@@ -27,7 +27,7 @@ Invite Dice Golem using [this link][invite]. You can also find it listed on [top
 
 Once Dice Golem's availble in a server there are configuration changes that can be made:
 
-- Server managers can put [limits on Slash commands](https://discord.com/blog/slash-commands-permissions-discord-apps-bots) within servers' Integrations settings: _Server Settings > Integrations > Dice Golem_. You can limit usage of Dice Golem's individual interation commands to specific channels and to users of specific roles.
+- Server managers can apply [limits to Slash commands](https://discord.com/blog/slash-commands-permissions-discord-apps-bots) within server Integrations settings: _Server Settings > Integrations > Dice Golem_. You can limit usage of Dice Golem's individual interation commands to specific channels and to users with specific roles.
 
 -->
 
@@ -35,6 +35,7 @@ Once Dice Golem's availble in a server there are configuration changes that can 
 
 For questions, bug reports, feature suggestions, and support using Dice Golem feel free to join the [support server][support-invite]. Bug reports and feature requests can also be submitted as issues on GitHub.
 
+[directory]: discord:///application-directory/581956766246633475 "View App in Discord"
 [discord-bot-list]: https://top.gg/bot/581956766246633475
 [invite]: https://discord.com/api/oauth2/authorize?client_id=581956766246633475
 [owner-badge]: https://top.gg/api/widget/owner/581956766246633475.svg
