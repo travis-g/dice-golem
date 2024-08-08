@@ -2,6 +2,10 @@
 publish: false
 ---
 
+## How to Roll Dice
+
+:memo:
+
 |    `expression`     | Description                                                                                                                                 |
 | :-----------------: | ------------------------------------------------------------------------------------------------------------------------------------------- |
 |       `d20+2`       | Roll a D20 and add 2 to the result. Basic math operators like `-`, `+`, `*`, `/`, `**` (exponent) and `%` (modulo/remainder) are supported. |
@@ -13,3 +17,31 @@ publish: false
 |       `8d6s`        | Roll eight D6s and sort the results in ascending order. To sort results in descending order use `sd`: `8d6sd`.                              |
 |   `2d6 + 1d4 + 3`   | Combine dice groups and math together in a single request.                                                                                  |
 | `3d6 # Fire damage` | Add an inline label for an expression after a `#` or `\`. The label will be included in the response text.                                  |
+
+### Rolling Secretly
+
+You can use the <span class="mention">/secret</span> and <span class="mention">/private</span> commands [...]
+
+<!-- ### Inline Labels -->
+
+### Named Expressions
+
+You can use e
+
+### Math Expressions
+
+If you'd like to do a math calculation [...]
+
+## Modifiers
+
+### Rerolling
+
+### Drop/Keep
+
+### Sorting
+
+### Exploding Dice
+
+### Targets
+
+### Critical Success/Failure

@@ -158,8 +158,8 @@ $bg-gradient-2: linear-gradient(120deg, #5461bd, #87a3e0, #5966d7);
   }
 
   &--github {
-    background-color: black;
-    border-color: white;
+    background-color: #000;
+    border-color: #111;
 
     @media (prefers-color-scheme: light) {
       & {
