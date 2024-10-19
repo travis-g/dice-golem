@@ -1,7 +1,9 @@
 <head>
   <meta charset="UTF-8" />
-  {% capture title %}{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}{% endcapture %}
-  {% capture description %}{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}{% endcapture %}
+  {% capture title %}{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}{%
+  endcapture %}
+  {% capture description %}{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}{%
+  endcapture %}
   <title>{{ title }}</title>
   <meta name="description" content="{{ description }}">
   <meta name="author" content="Travis Grammer" />
@@ -15,9 +17,17 @@
   <meta name="og:url" content="{{ site.url }}{{ page.url }}" />
   <meta name="og:type" content="website" />
   <meta name="og:site_name" content="dicegolem.io" />
-  <meta name="og:image" content="/images/dicegolem-avatar.png" />
-  <meta name="og:image:alt" content="Dice Golem's Discord avatar" />
+  <meta name="og:image" content="/images/dicegolem-card.png" />
+  <meta name="og:image:alt" content="Dice Golem's Discord artwork" />
   <meta name="og:locale" content="en_US" />
+
+  <meta name="twitter:card" content="summary">
+  <meta property="twitter:domain" content="dicegolem.io">
+  <meta property="twitter:url" content="{{ site.url }}{{ page.url }}">
+  <meta name="twitter:title" content="{{ title }}">
+  <meta name="twitter:description" content="{{ description }}">
+  <meta name="twitter:image" content="/images/dicegolem-card.png">
+  <meta name="twitter:image:alt" content="Dice Golem's Discord artwork" />
 
   {% include stylesheet.html href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" %}
   {% include stylesheet.html href="/css/style.css" %}
