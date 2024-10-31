@@ -1,8 +1,12 @@
 <!DOCTYPE html>
-<html lang="en"><head>
+<html lang="en">
+
+<head>
   <meta charset="UTF-8" />
-  {% capture title %}{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}{% endcapture %}
-  {% capture description %}{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}{% endcapture %}
+  {% capture title %}{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}{%
+  endcapture %}
+  {% capture description %}{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}{%
+  endcapture %}
   <title>{{ title }}</title>
   <meta name="description" content="{{ description }}">
   <meta name="author" content="Travis Grammer" />
@@ -25,8 +29,10 @@
 
   <link rel="icon" type="image/png" href="/favicon.ico" />
 </head>
-  <body>
-    <a href="{{ page.destination }}">Click here</a>
-    <script>location='{{ page.destination }}'</script>
-  </body>
+
+<body>
+  <a href="{{ page.destination }}">Click here</a>
+  <script>location = '{{ page.destination }}'</script>
+</body>
+
 </html>

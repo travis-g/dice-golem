@@ -3,6 +3,8 @@
 
   --font-size: 100%;
   --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+
+  font-size: var(--font-size)
 }
 
 li {
@@ -14,28 +16,24 @@ a {
   text-decoration: none;
 }
 
-.avatar {
+img.avatar {
   width: 6rem;
   height: 6rem;
   object-fit: cover;
   background-position: center;
 }
 
-$border-gradient-outer: linear-gradient(
-  150deg,
-  #ffff9c,
-  #ff9e23,
-  #ff5608,
-  #8e260e,
-  #601a0c
-);
-$border-gradient-inner: linear-gradient(
-  150deg,
-  #8e260e,
-  #ff5608,
-  #8e260e,
-  #601a0c
-);
+$border-gradient-outer: linear-gradient(150deg,
+    #ffff9c,
+    #ff9e23,
+    #ff5608,
+    #8e260e,
+    #601a0c);
+$border-gradient-inner: linear-gradient(150deg,
+    #8e260e,
+    #ff5608,
+    #8e260e,
+    #601a0c);
 // $bg-gradient-1: linear-gradient(120deg, $blurple, #565e7b, #6c88e7);
 // $bg-gradient-2: linear-gradient(120deg, #8185ed, #565e7b, #87b0fe);
 // $bg-gradient-1: linear-gradient(120deg, #7493f3, #5461bd, #87a3e0);
@@ -46,9 +44,11 @@ $bg-gradient-2: linear-gradient(120deg, #5461bd, #87a3e0, #5966d7);
   0% {
     opacity: 0;
   }
+
   50% {
     opacity: 1;
   }
+
   100% {
     opacity: 0;
   }
@@ -95,7 +95,7 @@ $bg-gradient-2: linear-gradient(120deg, #5461bd, #87a3e0, #5966d7);
 
   &--main::after {
     animation-name: fade;
-    animation-duration: 4s;
+    animation-duration: 2s;
     animation-iteration-count: infinite;
     animation-timing-function: ease-in-out;
     transition-property: opacity;
@@ -131,6 +131,7 @@ $bg-gradient-2: linear-gradient(120deg, #5461bd, #87a3e0, #5966d7);
 
   &--discord {
     background-color: $blurple;
+
     &:hover,
     &:focus {
       filter: brightness(90%);
@@ -159,7 +160,7 @@ $bg-gradient-2: linear-gradient(120deg, #5461bd, #87a3e0, #5966d7);
 
   &--github {
     background-color: #000;
-    border-color: #111;
+    border-color: #fff;
 
     @media (prefers-color-scheme: light) {
       & {
