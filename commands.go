@@ -97,7 +97,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 			},
 			{
 				Name:        "expressions",
-				Description: "Clear your saved roll exressions.",
+				Description: "Clear your saved roll expressions.",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
 		},
