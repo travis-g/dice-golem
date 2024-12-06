@@ -86,8 +86,6 @@ func (b *Bot) Setup() {
 // Open opens sharded sessions based on Discord's /gateway/bot response and
 // returns the number of shards spawned.
 func (b *Bot) Open(ctx context.Context) error {
-	defer metrics.MeasureSince([]string{"bot", "open"}, time.Now())
-
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + b.APIToken)
 	if err != nil {
@@ -200,7 +198,6 @@ func (b *Bot) Open(ctx context.Context) error {
 
 func openSession(s *discordgo.Session) (err error) {
 	logger.Info("opening session", zap.Int("shard", s.ShardID))
-	defer metrics.MeasureSince([]string{"session", "open"}, time.Now())
 	if err = s.Open(); err != nil {
 		logger.Error("error opening session", zap.Error(err))
 	} else {
@@ -211,7 +208,6 @@ func openSession(s *discordgo.Session) (err error) {
 
 func closeSession(s *discordgo.Session) (err error) {
 	logger.Info("closing session", zap.Int("shard", s.ShardID))
-	defer metrics.MeasureSince([]string{"session", "close"}, time.Now())
 	if err = s.Close(); err != nil {
 		logger.Error("error closing session", zap.Error(err))
 	} else {
@@ -222,7 +218,6 @@ func closeSession(s *discordgo.Session) (err error) {
 
 func restartSession(s *discordgo.Session) (err error) {
 	logger.Info("restarting session", zap.Int("shard", s.ShardID))
-	defer metrics.MeasureSince([]string{"session", "restart"}, time.Now())
 	if err = closeSession(s); err != nil {
 		logger.Error("error restarting session", zap.Error(err))
 		return
