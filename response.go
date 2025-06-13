@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"strings"
 	"text/template"
 
@@ -20,7 +19,7 @@ var (
 	)
 )
 
-// Response is a message response for dice roll responses.
+// Deprecated: Response is a message response for dice roll responses.
 type Response struct {
 	*math.ExpressionResult
 	// Name of who made the roll (optional)
@@ -34,20 +33,17 @@ type Response struct {
 	Error error
 }
 
-func (r *Response) Interaction(ctx context.Context) (i *discordgo.Interaction) {
-	_, in, _ := FromContext(ctx)
-	u := UserFromInteraction(in)
-	if isRollPublic(i) {
-		r.Name = u.Mention()
-	}
-
-	return i
-}
-
-func (r *Response) MessageSend(ctx context.Context) *discordgo.MessageSend {
-	return new(discordgo.MessageSend)
-}
-
 func executeResponseTemplate(b *strings.Builder, r *Response) {
 	responseResultTemplateCompiled.Execute(b, r)
+}
+
+type RollResponse struct {
+	*NamedRollInput
+	User   *discordgo.User
+	Rolls  []interface{}
+	Errors []error
+}
+
+func (r *RollResponse) Count() int {
+	return len(r.Rolls)
 }

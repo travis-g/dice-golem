@@ -1,12 +1,18 @@
 package main
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"fmt"
+	"math"
+	"strings"
 
-// Dnd5ePadComponents is the set of message components of the default macro
-// pad.
+	"github.com/bwmarrin/discordgo"
+)
+
+// Message components for default macro pads, set during init.
 var (
 	Dnd5ePadComponents []discordgo.MessageComponent
 	FatePadComponents  []discordgo.MessageComponent
+	D20PadComponents   []discordgo.MessageComponent
 )
 
 func init() {
@@ -127,63 +133,60 @@ func init() {
 			},
 		},
 	}
-	FatePadComponents = []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label:    "-2",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF-2",
-				},
-				discordgo.Button{
-					Label:    "-1",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF-1",
-				},
-				discordgo.Button{
-					Label:    "4dF",
-					CustomID: "macro_4dF",
-				},
-				discordgo.Button{
-					Label:    "+1",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF+1",
-				},
-				discordgo.Button{
-					Label:    "+2",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF+2",
-				},
-			},
-		},
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.Button{
-					Label:    "+3",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF+3",
-				},
-				discordgo.Button{
-					Label:    "+4",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF+4",
-				},
-				discordgo.Button{
-					Label:    "+5",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF+5",
-				},
-				discordgo.Button{
-					Label:    "+6",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF+6",
-				},
-				discordgo.Button{
-					Label:    "+7",
-					Style:    discordgo.SecondaryButton,
-					CustomID: "macro_4dF+7",
-				},
-			},
-		},
+	FatePadComponents = makeModifierButtonPad("4dF", -7, 7)
+	D20PadComponents = makeModifierButtonPad("d20", -7, 7)
+}
+
+func makeModifierRange(lowest, highest int) []int {
+	len := highest - lowest + 1
+	if len > 25 {
+		panic("range too large")
 	}
+	modifiers := make([]int, len)
+	for i := range modifiers {
+		modifiers[i] = lowest + i
+	}
+	return modifiers
+}
+
+func makeModifierButtonPad(expression string, lowest, highest int) []discordgo.MessageComponent {
+	modifiers := makeModifierRange(lowest, highest)
+	maxCols := 5
+	rows := (len(modifiers) + (maxCols - 1)) / maxCols
+
+	var components = make([]discordgo.MessageComponent, rows)
+	for c := range components {
+		cols := math.Min(float64(maxCols), float64(len(modifiers)-(c*maxCols)))
+		components[c] = discordgo.ActionsRow{Components: make([]discordgo.MessageComponent, int(cols))}
+	}
+
+	index := 0
+	for i := 0; i < rows; i++ {
+		for j := 0; j < maxCols; j++ {
+			if index < len(modifiers) {
+				var label string
+				var style discordgo.ButtonStyle
+				modifier := modifiers[index]
+				if modifier != 0 {
+					// ensure integers are signed on button labels (ex. "+3")
+					label = fmt.Sprintf("%+d", modifier)
+					style = discordgo.SecondaryButton
+				} else {
+					label = expression
+					style = discordgo.PrimaryButton
+				}
+				expression := strings.ReplaceAll(fmt.Sprintf("%s+%d", expression, modifier), "+-", "-")
+
+				components[i].(discordgo.ActionsRow).Components[j] = discordgo.Button{
+					Label:    label,
+					Style:    style,
+					CustomID: "macro_" + expression,
+				}
+				index++
+			} else {
+				break
+			}
+		}
+	}
+	return components
 }

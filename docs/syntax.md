@@ -26,6 +26,8 @@ You can use the <span class="mention">/secret</span> and <span class="mention">/
 
 ### Named Expressions
 
+:memo:
+
 ### Math Expressions
 
 If you'd like to do a math calculation [...]

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -17,10 +16,8 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/bwmarrin/discordgo"
-	"github.com/gocarina/gocsv"
 	"github.com/mitchellh/mapstructure"
 	"github.com/travis-g/dice"
-	"github.com/travis-g/dice/math"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -85,7 +82,7 @@ func main() {
 	startDuration := time.Since(startTime)
 	logger.Info("bot started", zap.Duration("duration", startDuration.Round(time.Millisecond)))
 
-	DiceGolem.EmitNotificationMessage(&discordgo.MessageSend{
+	go DiceGolem.EmitNotificationMessage(ctx, &discordgo.MessageSend{
 		Content: ResponsePrefix,
 		Embeds: []*discordgo.MessageEmbed{
 			{
@@ -97,25 +94,26 @@ func main() {
 	})
 
 	go func() {
-		if err := DiceGolem.ConfigureCommands(); err != nil {
+		if err := DiceGolem.ConfigureCommands(ctx); err != nil {
 			logger.Error("commands", zap.Error(err))
 		}
 		logger.Debug("commands", zap.Any("object", DiceGolem.Commands))
 	}()
 
 	// if DBL token is provided, set up the background server count updater.
-	if DiceGolem.TopToken != "" {
+	if DiceGolem.TopToken != nil {
 		logger.Info("dbl enabled")
 		go func() {
 			for range time.Tick(1 * time.Hour) {
 				logger.Info("posting dbl server count")
-				postServerCount(DiceGolem)
+				postGuildCount(DiceGolem)
 			}
 		}()
 	}
 
 	// wait 10 seconds before starting metrics
-	if DiceGolem.StatsdAddr != "" {
+	if DiceGolem.Metrics != nil {
+		logger.Info("metrics enabled")
 		go func() {
 			for range time.Tick(10 * time.Second) {
 				go metrics.IncrCounter([]string{"core", "healthy"}, 1)
@@ -128,33 +126,8 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
+	DiceGolem.Close()
 }
-
-func createFriendlyError(err error) error {
-	logger.Debug("error", zap.Error(err))
-	switch err {
-	case dice.ErrInvalidExpression:
-		return fmt.Errorf("I can't evaluate that expression. Is that roll valid?")
-	case ErrNilExpressionResult:
-		return fmt.Errorf("Something's wrong with that expression, it was empty.")
-	case ErrTooManyDice:
-		return fmt.Errorf("Your roll may require too many dice, please try a smaller roll (under %d dice).", DiceGolem.MaxDice)
-	case math.ErrNilResult:
-		return fmt.Errorf("Your roll didn't yield a result.")
-	case ErrTokenTransition:
-		return fmt.Errorf("An error was thrown when evaluating your expression. Please check for extra spaces in notations or missing math operators.")
-	default:
-		return fmt.Errorf("Something unexpected errored. Please check </help:%s>.", DiceGolem.SelfID)
-	}
-}
-
-// Errors.
-var (
-	ErrNilExpressionResult = errors.New("nil expression result")
-	ErrTokenTransition     = errors.New("token transition error")
-	ErrTooManyDice         = errors.New("too many dice")
-	ErrNotImplemented      = errors.New("not implemented")
-)
 
 func HandlePanic(s *discordgo.Session, i interface{}) {
 	switch v := i.(type) {
@@ -216,49 +189,58 @@ func HandleConnect(s *discordgo.Session, e *discordgo.Connect) {
 	logger.Warn("connected",
 		zap.Int("shard", s.ShardID),
 	)
+	metrics.IncrCounter([]string{"core", "connect"}, 1)
 }
 
 func HandleDisconnect(s *discordgo.Session, e *discordgo.Disconnect) {
 	logger.Warn("disconnected",
 		zap.Int("shard", s.ShardID),
 	)
+	metrics.IncrCounter([]string{"core", "disconnect"}, 1)
 }
 
 func HandleGuildCreate(s *discordgo.Session, e *discordgo.GuildCreate) {
+	ctx := context.TODO()
 	metrics.IncrCounter([]string{"core", "guild_create"}, 1)
 	logger.Debug("guild create",
 		zap.Int("shard", s.ShardID),
 		zap.String("id", e.ID))
-	DiceGolem.Redis.SAdd(fmt.Sprintf(KeyStateShardGuildFmt, strconv.Itoa(s.ShardID)), e.ID)
+	DiceGolem.Cache.Redis.SAdd(ctx, fmt.Sprintf(KeyStateShardGuildsFmt, strconv.Itoa(s.ShardID)), e.ID)
 }
 
 func HandleGuildDelete(s *discordgo.Session, e *discordgo.GuildDelete) {
+	ctx := context.TODO()
 	logger.Debug("guild delete",
 		zap.Int("shard", s.ShardID),
 		zap.String("id", e.ID),
 		zap.Bool("unavailable", e.Unavailable))
 	if !e.Unavailable {
 		defer metrics.IncrCounter([]string{"core", "guild_delete"}, 1)
-		DiceGolem.Redis.SRem(fmt.Sprintf(KeyStateShardGuildFmt, strconv.Itoa(s.ShardID)), e.ID)
+		DiceGolem.Cache.Redis.SRem(ctx, fmt.Sprintf(KeyStateShardGuildsFmt, strconv.Itoa(s.ShardID)), e.ID)
 	}
 }
 
 // RouteInteractionCreate routes a Discord Interaction creation sent to the bot
 // to the appropriate sub-routers ands handlers based on type.
 func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreate) {
+	// measure bot-side handling time
 	defer metrics.MeasureSince([]string{"core", "handle_interaction"}, time.Now())
-	// measure full time since MessageCreate on Discord's side:
-	if sent, err := discordgo.SnowflakeTimestamp(ic.ID); err == nil {
+
+	// measure time since message was registered within Discord
+	sent, err := discordgo.SnowflakeTimestamp(ic.ID)
+	if err == nil {
 		defer metrics.MeasureSince([]string{"core", "round_trip"}, sent)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
 	i := ic.Interaction
 	defer InteractionRecover(s, i)
 	go func() {
 		// log some metrics
-		if sent, err := discordgo.SnowflakeTimestamp(i.ID); err == nil {
-			metrics.MeasureSinceWithLabels([]string{"core", "gateway_latency"}, sent, []metrics.Label{
-				{Name: "shard", Value: strconv.Itoa(s.ShardID)},
-			})
+		if err == nil {
+			metrics.MeasureSince([]string{"core", "gateway_latency"}, sent)
 		}
 		metrics.IncrCounter([]string{"core", "interaction"}, 1)
 		metrics.IncrCounter([]string{"interaction", i.Type.String()}, 1)
@@ -274,8 +256,9 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	ctx = NewContext(ctx, s, i, nil)
-	ctx = context.WithValue(ctx, dice.CtxKeyMaxRolls, int(float64(DiceGolem.MaxDice)*1.2))
+	ctx = context.WithValue(ctx, dice.CtxKeyMaxRolls, int(float64(DiceGolem.MaxDice)*1.1))
 
+	logger.Debug("interaction type", zap.String("type", i.Type.String()))
 	switch i.Type {
 	// CHAT_INPUT type
 	case discordgo.InteractionApplicationCommand:
@@ -336,10 +319,13 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 			return
 		}
 
-	// Auto-complete events with users' partial input data
+	// Autocomplete events with users' partial input data
 	case discordgo.InteractionApplicationCommandAutocomplete:
-		opt, param := getFocusedOption(i.ApplicationCommandData())
+		data := i.ApplicationCommandData()
+		opt, param := getFocusedOption(data)
 		if opt == nil {
+			logger.Warn("unfocused autocomplete interaction", zap.Any("data", data))
+			// TODO: better error
 			return
 		}
 		defer metrics.MeasureSince([]string{"core", "autocomplete"}, time.Now())
@@ -350,12 +336,13 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 			panic("unhandled autocomplete parameter: " + param)
 		}
 
+	// Modal submissions
 	case discordgo.InteractionModalSubmit:
 		data := i.ModalSubmitData()
 		logger.Debug("modal in", zap.Any("data", data))
 
-		switch {
-		case data.CustomID == "modal_save":
+		switch data.CustomID {
+		case "modal_save":
 			data := getModalTextInputComponents(data)
 			roll := new(NamedRollInput)
 			mapstructure.Decode(data, roll)
@@ -375,61 +362,18 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 			); err != nil {
 				logger.Error("error sending message", zap.Error(err))
 			}
-		case data.CustomID == "modal_import":
-			data := getModalTextInputComponents(data)
-			// make sure there was data
-			csvStr, ok := data["csv"].(string)
-			if csvStr == "" || !ok {
-				MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("CSV data was empty! No changes will be made."))
-				return
-			}
-			// unmarshal CSV to list of rolls
-			csv := []byte(csvStr)
-			var rolls []*NamedRollInput
-			if err := gocsv.UnmarshalBytes(csv, &rolls); err != nil {
-				MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Error reading CSV: "+err.Error()))
-				return
-			}
-
-			logger.Debug("unmarshaled data", zap.Any("rolls", rolls))
-			if len(rolls) > DiceGolem.MaxExpressions {
-				MeasureInteractionRespond(s.InteractionRespond, i,
-					newEphemeralResponse(fmt.Sprintf("Data contained more than the maximum of %d expressions to save.", DiceGolem.MaxExpressions)))
-
-				return
-			}
-
-			for n, roll := range rolls {
-				roll.Clean()
-				if err := roll.Validate(); err != nil {
-					MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse(fmt.Sprintf("Error validating expression %d: %v", n+1, err)))
-					return
-				}
-				if ok, err := roll.okForAutocomplete(); !ok {
-					MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse(fmt.Sprintf("Cannot save expression %d: %v", n+1, err)))
-					return
-				}
-			}
-
-			// all the rolls validated as best as they can be; replace what's in there
-			key := fmt.Sprintf(KeyUserGlobalExpressionsFmt, UserFromInteraction(i).ID)
-			DiceGolem.Redis.Del(key)
-			for _, roll := range rolls {
-				SetNamedRoll(UserFromInteraction(i), i.GuildID, roll)
-			}
-			count := DiceGolem.Redis.HLen(key).Val()
-			MeasureInteractionRespond(s.InteractionRespond, i,
-				newEphemeralResponse(fmt.Sprintf("Expressions saved! Total expressions: %d", count)))
+		case "modal_import":
+			ImportExpressionsInteraction(ctx, getModalTextInputComponents(data))
 			return
 
 		default:
 			MeasureInteractionRespond(s.InteractionRespond, i, newEphemeralResponse("Sorry! You submitted an unexpected modal. Please try again later."))
+			return
 		}
-		return
-
 	default:
 		panic("unhandled interaction type: " + i.Type.String())
 	}
+	return
 }
 
 func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -439,9 +383,6 @@ func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			metrics.MeasureSince([]string{"core", "gateway_latency"}, sent)
 		}
 		metrics.IncrCounter([]string{"core", "message_in"}, 1)
-		metrics.IncrCounterWithLabels([]string{"core", "message_in_by_shard"}, 1, []metrics.Label{
-			{Name: "shard", Value: strconv.Itoa(s.ShardID)},
-		})
 	}()
 	logger.Debug("message_in", zap.Int("shard", s.ShardID), zap.Any("message", m))
 	// no content means there's no roll text to process (or it's not meant for
