@@ -232,6 +232,8 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 		defer metrics.MeasureSince([]string{"core", "round_trip"}, sent)
 	}
 
+	// FIXME: this duration needs to be lengthier, and cut back depending on
+	// interaction type (ex. roll vs. session restart)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -250,11 +252,6 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 	}()
 
 	logger.Debug("interaction type", zap.String("type", i.Type.String()))
-
-	// FIXME: this duration needs to be lengthier, and cut back depending on
-	// interaction type (ex. roll vs. session restart)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
 	ctx = NewContext(ctx, s, i, nil)
 	ctx = context.WithValue(ctx, dice.CtxKeyMaxRolls, int(float64(DiceGolem.MaxDice)*1.1))
 
