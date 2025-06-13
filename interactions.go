@@ -732,15 +732,15 @@ func InteractionButtons(ctx context.Context) {
 		components = makeModifierButtonPad(base.StringValue(), lowest, highest)
 	}
 
+	// add instructions
+	components = append(components, discordgo.TextDisplay{
+		Content: fmt.Sprintf("-# Click or tap to make dice rolls! Results will post to <#%s>.", i.ChannelID),
+	})
+
 	err := MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Description: fmt.Sprintf("Click or tap to make dice rolls! Results will post to <#%s>.", i.ChannelID),
-				},
-			},
-			Flags:      discordgo.MessageFlagsEphemeral,
+			Flags:      discordgo.MessageFlagsEphemeral | discordgo.MessageFlagsIsComponentsV2,
 			Components: components,
 		},
 	})
@@ -901,8 +901,12 @@ func InteractionDebug(ctx context.Context) {
 	MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("@%s#%s", i.User.Username, i.User.Discriminator),
-			Flags:   discordgo.MessageFlagsEphemeral,
+			Flags: discordgo.MessageFlagsEphemeral | discordgo.MessageFlagsIsComponentsV2,
+			Components: []discordgo.MessageComponent{
+				discordgo.TextDisplay{
+					Content: "Testing!",
+				},
+			},
 		},
 	})
 }
@@ -1021,18 +1025,6 @@ func isInteractionPublic(i *discordgo.Interaction) bool {
 		return false
 	}
 	return true
-}
-
-func DebugInteraction(ctx context.Context) {
-	s, i, _ := FromContext(ctx)
-
-	MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("@%s#%s", i.User.Username, i.User.Discriminator),
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
-	})
 }
 
 // ExpressionsClearInteraction drops a user's saved expressions from the backend

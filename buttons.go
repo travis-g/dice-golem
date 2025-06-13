@@ -107,6 +107,35 @@ func init() {
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.Button{
+					Label:    "4d4",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4d4",
+				},
+				discordgo.Button{
+					Label:    "4d6",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4d6",
+				},
+				discordgo.Button{
+					Label:    "4d8",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4d8",
+				},
+				discordgo.Button{
+					Label:    "4d10",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4d10",
+				},
+				discordgo.Button{
+					Label:    "4d12",
+					Style:    discordgo.SecondaryButton,
+					CustomID: "macro_4d12",
+				},
+			},
+		},
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
 					Label:    "d20",
 					CustomID: "macro_d20",
 				},
@@ -139,7 +168,7 @@ func init() {
 
 func makeModifierRange(lowest, highest int) []int {
 	len := highest - lowest + 1
-	if len > 25 {
+	if len > 30 {
 		panic("range too large")
 	}
 	modifiers := make([]int, len)
