@@ -1,0 +1,15 @@
+<script>
+  let ready = (cb) => {
+    document.readyState === "interactive" || document.readyState === "complete" ? cb() : document.addEventListener("DOMContentLoaded", cb)
+  }
+  ready(() => {
+    document.body.style.visibility = "visible"
+  })
+</script>
+<noscript>
+  <style>
+    body {
+      visibility: visible;
+    }
+  </style>
+</noscript>

@@ -90,6 +90,7 @@ func main() {
 				Footer:      makeEmbedFooter(),
 			},
 		},
+		Flags: discordgo.MessageFlagsSuppressNotifications,
 	})
 
 	go func() {
@@ -248,6 +249,12 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 		})
 	}()
 
+	logger.Debug("interaction type", zap.String("type", i.Type.String()))
+
+	// FIXME: this duration needs to be lengthier, and cut back depending on
+	// interaction type (ex. roll vs. session restart)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 	ctx = NewContext(ctx, s, i, nil)
 	ctx = context.WithValue(ctx, dice.CtxKeyMaxRolls, int(float64(DiceGolem.MaxDice)*1.1))
 
@@ -298,7 +305,6 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 				_ = MeasureInteractionRespond(s.InteractionRespond, i, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseDeferredMessageUpdate,
 				})
-				// cacheRollExpression(s, i, rollData.Expression)
 			}
 		} else if handle, ok := handlers[id]; ok {
 			// if it was a generic action button, handle the press
