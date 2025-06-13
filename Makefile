@@ -6,12 +6,12 @@ default: fmt test build
 .PHONY: fmt
 fmt:
 	@echo "--> Formatting source files..."
-	gofmt -s -w $(GOFMT_FILES)
+	go1.24.4 fmt -s -w $(GOFMT_FILES)
 
 .PHONY: test
 test:
 	@echo "--> Testing..."
-	go test -cover ./...
+	go1.24.4 test -cover ./...
 
 .PHONY: lint
 lint:
@@ -21,20 +21,20 @@ lint:
 .PHONY: build
 build: fmt test
 	@echo "--> Building!"
-	go build -ldflags="-s -w" -o dice-golem
+	go1.24.4 build -ldflags="-s -w" -o dice-golem
 
 .PHONY: dist
 dist:
 	@echo "--> Building Production binary..."
 	mkdir -p dist/
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/dice-golem
+	GOOS=linux GOARCH=amd64 go1.24.4 build -ldflags="-s -w" -o dist/dice-golem
 
 .PHONY: debug
 debug: dev
 .PHONY: dev
 dev: test
 	@echo "--> Running in dev/debug mode..."
-	go build -ldflags="-s -w" -o dice-golem
+	go1.24.4 build -ldflags="-s -w" -o dice-golem
 	GOLEM_DEBUG=true GOLEM_RECENT=4h ./dice-golem
 
 .PHONY: clean

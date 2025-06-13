@@ -13,9 +13,9 @@ type BotCommands struct {
 
 // Defaults for command settings.
 var (
-	defaultIntegrationTypes = []discordgo.IntegrationType{discordgo.GuildInstallIntegrationType, discordgo.UserInstallIntegrationType}
-	defaultContextTypes     = []discordgo.ContextType{discordgo.GuildContextType, discordgo.BotDMContextType, discordgo.PrivateChannelContextType}
-	buttonsContextTypes     = []discordgo.ContextType{discordgo.GuildContextType, discordgo.BotDMContextType}
+	defaultIntegrationTypes = []discordgo.ApplicationIntegrationType{discordgo.ApplicationIntegrationGuildInstall, discordgo.ApplicationIntegrationUserInstall}
+	defaultContextTypes     = []discordgo.InteractionContextType{discordgo.InteractionContextGuild, discordgo.InteractionContextBotDM, discordgo.InteractionContextPrivateChannel}
+	buttonsContextTypes     = []discordgo.InteractionContextType{discordgo.InteractionContextGuild, discordgo.InteractionContextBotDM}
 )
 
 // CommandsGlobalChat are the globally-enabled Slash commands supported by the
@@ -25,8 +25,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "roll",
 		Description:      "Roll a dice expression",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		Options:          MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed, rollOptionsSecret, rollOptionsPrivate),
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "tirar",
@@ -38,8 +38,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "help",
 		Description:      "Show help for using Dice Golem.",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "ayuda",
 		},
@@ -50,8 +50,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "info",
 		Description:      "Show bot information for Dice Golem.",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "información",
 		},
@@ -62,8 +62,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "secret",
 		Description:      "Make an ephemeral roll that only you will see",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		Options:          MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "secreto",
@@ -75,8 +75,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "private",
 		Description:      "Make a roll to have DMed to you",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         []discordgo.ContextType{discordgo.GuildContextType, discordgo.PrivateChannelContextType},
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         Ptr([]discordgo.InteractionContextType{discordgo.InteractionContextGuild, discordgo.InteractionContextPrivateChannel}),
 		Options:          MergeApplicationCommandOptions(rollOptionsDefault, rollOptionsDetailed),
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "privado",
@@ -88,8 +88,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "clear",
 		Description:      "Data removal commands",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "recent",
@@ -109,8 +109,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "preferences",
 		Description:      "Configure your preferences",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		Type:             discordgo.ApplicationCommandType(discordgo.ApplicationCommandOptionSubCommand),
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "preferencias",
@@ -147,8 +147,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "buttons",
 		Description:      "Mobile-friendly dice buttons and macro pads",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         buttonsContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &buttonsContextTypes,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "dnd5e",
@@ -204,8 +204,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "expressions",
 		Description:      "Save and manage dice expressions",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "save",
@@ -250,7 +250,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:                     "ping",
 		Description:              "View response times.",
-		IntegrationTypes:         defaultIntegrationTypes,
+		IntegrationTypes:         &defaultIntegrationTypes,
 		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
 		DescriptionLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "Ver tiempos de respuesta",
@@ -258,8 +258,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	},
 	{
 		Name:             "add",
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		Description:      "Add the bot to a server or your account.",
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "añadir",
@@ -271,8 +271,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "Roll Message",
 		Type:             discordgo.MessageApplicationCommand,
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "Tirar Mensaje",
 		},
@@ -280,8 +280,8 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 	{
 		Name:             "Save Expression",
 		Type:             discordgo.MessageApplicationCommand,
-		IntegrationTypes: defaultIntegrationTypes,
-		Contexts:         defaultContextTypes,
+		IntegrationTypes: &defaultIntegrationTypes,
+		Contexts:         &defaultContextTypes,
 		NameLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "Guardar Tira",
 		},
