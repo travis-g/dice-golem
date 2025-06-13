@@ -176,9 +176,6 @@ func TestNewRollInputFromString(t *testing.T) {
 }
 
 func Test_splitMultirollString(t *testing.T) {
-	type args struct {
-		s string
-	}
 	tests := []struct {
 		name string
 		arg  string

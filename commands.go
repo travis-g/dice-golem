@@ -251,7 +251,7 @@ var CommandsGlobalChat = []*discordgo.ApplicationCommand{
 		Name:                     "ping",
 		Description:              "View response times.",
 		IntegrationTypes:         &defaultIntegrationTypes,
-		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageGuild)),
 		DescriptionLocalizations: &map[discordgo.Locale]string{
 			discordgo.SpanishES: "Ver tiempos de respuesta",
 		},
@@ -304,7 +304,7 @@ var CommandsHomeChat = []*discordgo.ApplicationCommand{
 		Name:                     "settings",
 		Description:              "Server settings commands (experimental)",
 		DMPermission:             Ptr(false),
-		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageServer)),
+		DefaultMemberPermissions: Ptr(int64(discordgo.PermissionManageGuild)),
 		Options: []*discordgo.ApplicationCommandOption{
 			{
 				Name:        "forward",
@@ -433,7 +433,7 @@ var (
 		}
 		return opt
 	}
-	getModalTextInputComponents = func(modal discordgo.ModalSubmitInteractionData) map[string]interface{} {
+	getModalTextInputComponents = func(modal discordgo.ModalSubmitInteractionData) map[string]any {
 		data := make(map[string]interface{})
 		for _, irow := range modal.Components {
 			row := irow.(*discordgo.ActionsRow)

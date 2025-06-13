@@ -227,7 +227,7 @@ func ExportExpressions(ctx context.Context, expressions RollSlice) *discordgo.Fi
 	}
 }
 
-func ImportExpressionsInteraction(ctx context.Context, data map[string]interface{}) error {
+func ImportExpressionsInteraction(ctx context.Context, data map[string]any) error {
 	s, i, _ := FromContext(ctx)
 	// make sure there was data
 	csvStr, ok := data["csv"].(string)
@@ -261,7 +261,7 @@ func ImportExpressionsInteraction(ctx context.Context, data map[string]interface
 	key := fmt.Sprintf(KeyCacheUserGlobalExpressionsFmt, UserFromInteraction(i).ID)
 	DiceGolem.Cache.Redis.Del(ctx, key)
 	for _, roll := range rolls {
-		SetNamedRoll(UserFromInteraction(i), i.GuildID, roll)
+		_ = SetNamedRoll(UserFromInteraction(i), i.GuildID, roll)
 	}
 	count := DiceGolem.Cache.Redis.HLen(ctx, key).Val()
 	return MeasureInteractionRespond(s.InteractionRespond, i,

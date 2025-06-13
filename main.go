@@ -43,7 +43,7 @@ func init() {
 	discordgo.APIVersion = "10"
 
 	// logging init
-	discordgo.Logger = func(msgL, caller int, format string, a ...interface{}) {
+	discordgo.Logger = func(msgL, caller int, format string, a ...any) {
 		var f func(msg string, fields ...zapcore.Field)
 		pc, _, _, _ := runtime.Caller(caller + 1)
 		name := runtime.FuncForPC(pc).Name()
@@ -71,7 +71,7 @@ func main() {
 
 	// open HTTP server for heap debugging
 	go func() {
-		http.ListenAndServe(":6060", nil)
+		_ = http.ListenAndServe(":6060", nil)
 	}()
 
 	if err := DiceGolem.Open(ctx); err != nil {
@@ -126,10 +126,9 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
-	DiceGolem.Close()
 }
 
-func HandlePanic(s *discordgo.Session, i interface{}) {
+func HandlePanic(s *discordgo.Session, i any) {
 	switch v := i.(type) {
 	case *discordgo.Interaction:
 		InteractionRecover(s, v)
@@ -174,7 +173,9 @@ func HandleReady(s *discordgo.Session, e *discordgo.Ready) {
 		zap.Int("shard", s.ShardID),
 	)
 	metrics.IncrCounter([]string{"core", "ready"}, 1)
-	s.UpdateGameStatus(0, DiceGolem.Status)
+	if err := s.UpdateGameStatus(0, DiceGolem.Status); err != nil {
+		logger.Error("update game status", zap.Error(err))
+	}
 }
 
 // HandleResume handles a Discord RESUME event.
@@ -342,7 +343,7 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 		case "modal_save":
 			data := getModalTextInputComponents(data)
 			roll := new(NamedRollInput)
-			mapstructure.Decode(data, roll)
+			_ = mapstructure.Decode(data, roll)
 			logger.Debug("modal data", zap.Any("data", roll))
 			roll.Clean()
 			if err := roll.Validate(); err != nil {
@@ -370,7 +371,6 @@ func RouteInteractionCreate(s *discordgo.Session, ic *discordgo.InteractionCreat
 	default:
 		panic("unhandled interaction type: " + i.Type.String())
 	}
-	return
 }
 
 func HandleMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {

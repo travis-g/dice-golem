@@ -373,7 +373,7 @@ func NewRollInteractionResponseFromStringWithContext(ctx context.Context, expres
 	// build the message content using a template
 	logger.Debug("rendering response", zap.Any("message", message))
 	var text strings.Builder
-	responseResultTemplateCompiled.Execute(&text, message)
+	_ = responseResultTemplateCompiled.Execute(&text, message)
 
 	response := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -954,7 +954,7 @@ func InteractionGolemancy(ctx context.Context) {
 				if _, err := s.InteractionResponseEdit(i, &discordgo.WebhookEdit{
 					Embeds: Ptr([]*discordgo.MessageEmbed{
 						{
-							Description: fmt.Sprintf("Session %d restarted (%s)!", s.ShardID, humanfmt.Sprintf("%s", time.Now().Sub(now))),
+							Description: fmt.Sprintf("Session %d restarted (%s)!", s.ShardID, humanfmt.Sprintf("%s", time.Since(now))),
 						},
 					}),
 				},

@@ -34,7 +34,7 @@ type Response struct {
 }
 
 func executeResponseTemplate(b *strings.Builder, r *Response) {
-	responseResultTemplateCompiled.Execute(b, r)
+	_ = responseResultTemplateCompiled.Execute(b, r)
 }
 
 type RollResponse struct {
