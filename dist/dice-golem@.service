@@ -15,7 +15,8 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 
 # --- Exec commands (executed inside WorkingDirectory)
-ExecStart=/bin/sh -c "source /opt/dice-golem/.env; /usr/bin/screen -DmS dice-golem%i /opt/dice-golem/dice-golem"
+EnvironmentFile=/opt/dice-golem/.env
+ExecStart=/bin/sh -c "/usr/bin/screen -DmS dice-golem%i /opt/dice-golem/dice-golem"
 
 StandardOutput=syslog
 StandardError=syslog
