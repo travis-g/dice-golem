@@ -126,7 +126,7 @@
       description: Clear your recent roll history.
     - type: 1
       name: expressions
-      description: Clear your saved roll exressions.
+      description: Clear your saved roll expressions.
 - default_member_permissions: ~
   type: 1
   name: buttons
@@ -191,7 +191,7 @@
       description: Export your saved expressions to a CSV.
     - type: 1
       name: clear
-      description: Clear your saved roll exressions.
+      description: Clear your saved roll expressions.
 - default_member_permissions: ~
   type: 3
   name: Save Expression
