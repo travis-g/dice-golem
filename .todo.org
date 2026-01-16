@@ -1,0 +1,29 @@
+#+TITLE: Dice Golem To-dos
+
+* Now
+
+** TODO Response rich formatting
+** TODO Details embed format improvements
+** TODO List saved expressions command
+** TODO Scoped saved expressions
+*** DONE User global
+*** TODO Channel user
+*** TODO Guild user
+*** TODO Guild global
+** TODO Guild-specific settings
+*** TODO @Silent delivery
+** TODO Localization/internationalization
+
+* Parser
+
+** TODO Exploding dice
+** TODO Multi-roll support
+** TODO Context cancellation improvements
+
+* Later
+
+** TODO Context cancellation improvements
+** TODO Bulk roll modal
+** TODO Bot notifications to The Pit
+** TODO Cache layer module
+** TODO Custom output format templates
