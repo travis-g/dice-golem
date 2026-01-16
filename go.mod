@@ -20,7 +20,7 @@ require (
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	golang.org/x/net v0.22.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 )
 
 require (
@@ -33,8 +33,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
 )
 
 replace github.com/armon/go-metics => github.com/hashicorp/go-metrics v0.5.4
